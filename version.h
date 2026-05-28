@@ -1,7 +1,7 @@
 #ifndef VERSION_H
 #define VERSION_H
 
-#define VERSION "1.1"
+#define VERSION "2.0"
 
 /*项目信息*/
 #define PROJECT_NAME "PCT_100"

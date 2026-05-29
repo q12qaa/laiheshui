@@ -1,45 +1,81 @@
 #include "exti.h"
 #include "relay.h"
 
+// 新增：独立控制灯和风扇
+bool lamp_state = false;
+bool fan_state  = false;
+int  key2_cnt   = 0; // KEY2 按下次数：0~3循环
+
 void setup() {
-  // 初始化外部中断（含按键引脚初始化）
   exti_init();
-  // 初始化继电器输出引脚
   relay_init();
-  // 初始状态继电器关闭
-  relay_off();
-  relay_state = 0;
+  relay_off();         // 初始全关
+  lamp_state = false;
+  fan_state  = false;
+  key2_cnt   = 0;
 }
 
+// 单独控制灯
+void lamp_on()  { digitalWrite(6, HIGH); lamp_state = true; }
+void lamp_off() { digitalWrite(6, LOW);  lamp_state = false; }
+
+// 单独控制风扇
+void fan_on()   { digitalWrite(7, HIGH); fan_state  = true; }
+void fan_off()  { digitalWrite(7, LOW);  fan_state  = false; }
+
 void loop() {
-  // 必须每帧调用：执行按键消抖和状态机逻辑
   exti_update();
 
-  // 处理KEY1（自锁开关）：仅作为总使能，扳动仅更新使能状态，不直接控制继电器
+  // ---- KEY1 总锁：断开 → 立刻全关 ----
   if (key1_edge) {
-    key1_edge = 0;  // 清零事件标志
-    // KEY1状态变化仅改变使能，不直接操作继电器
-
-    // KEY1断开 → 强制关闭继电器
-  if (!key1_is_on()) {
-    relay_off();
-    relay_state = 0;
-  }
+    key1_edge = 0;
+    if (!key1_is_on()) {
+      lamp_off();
+      fan_off();
+      key2_cnt = 0; // 次数清零，下次从“灯亮”开始
+    }
   }
 
-  // 处理KEY2（轻触按键）：仅当KEY1导通（使能）时，按下才切换继电器状态
+  // ---- KEY2：只有 KEY1 闭合才有效 ----
   if (key2_edge) {
-    key2_edge = 0;  // 清零事件标志，防止重复触发
-    
-    // 关键：判断KEY1是否处于导通（按下）状态，仅此时KEY2有效
+    key2_edge = 0;
+
     if (key1_is_on()) {
-      relay_state = !relay_state;  // 切换继电器状态
-      if (relay_state) {
-        relay_on();   // 灯亮 + 风扇转
-      } else {
-        relay_off();  // 灯灭 + 风扇停
+      key2_cnt++;
+      if (key2_cnt > 5) key2_cnt = 0; // 0~5循环
+
+      switch (key2_cnt) {
+        case 1: // 第1次：灯亮，风扇停
+          lamp_on();
+          fan_off();
+          break;
+
+        case 2: // 第2次：灯灭，风扇转
+          lamp_off();
+          fan_off();
+          break;
+
+        case 3: // 第2次：灯亮，风扇转
+          lamp_off();
+          fan_on();
+          break;
+
+        case 4: // 第3次：灯亮，风扇转
+          lamp_off();
+          fan_off();
+          break;
+
+        case 5: // 第3次：灯亮，风扇转
+          lamp_on();
+          fan_on();
+          break;
+
+
+        case 0: // 第4次：全关
+          lamp_off();
+          fan_off();
+          break;
       }
     }
-    // KEY1未导通时，KEY2按下无任何反应
   }
 }

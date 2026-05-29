@@ -1,34 +1,45 @@
-#include "key.h"
-#include "jidianqi.h"
-#include "exti.h"  // 集成中断模块
-
-// 创建继电器对象，连接到数字引脚 13（可根据实际连接修改）
-RelayControl relay(13);
+#include "exti.h"
+#include "relay.h"
 
 void setup() {
-  // 初始化串口通信（用于调试输出）
-  Serial.begin(9600);
-  
-  // 初始化按键 + 外部中断
-  exti_init();  // 【关键】一句初始化中断
-  
-  // 初始化继电器
-  relay.begin();
-  
-  // 输出启动信息
-  Serial.println("============================");
-  Serial.println("    PCT_100 控制系统启动");
-  Serial.println("============================");
-  Serial.print("继电器初始状态: ");
-  Serial.println(relay.getState() ? "吸合 [ON]" : "断开 [OFF]");
-  Serial.println("按键连接在引脚 " + String(KEY_INT_PIN));
-  Serial.println("【中断模式】按下按键切换继电器状态");
-  Serial.println("============================");
+  // 初始化外部中断（含按键引脚初始化）
+  exti_init();
+  // 初始化继电器输出引脚
+  relay_init();
+  // 初始状态继电器关闭
+  relay_off();
+  relay_state = 0;
 }
 
 void loop() {
-  // loop 里空！因为按键靠中断触发
-  // 主程序可以干别的，完全不卡
+  // 必须每帧调用：执行按键消抖和状态机逻辑
+  exti_update();
 
-  // 如果你需要在这里加其他任务，随便加
+  // 处理KEY1（自锁开关）：仅作为总使能，扳动仅更新使能状态，不直接控制继电器
+  if (key1_edge) {
+    key1_edge = 0;  // 清零事件标志
+    // KEY1状态变化仅改变使能，不直接操作继电器
+
+    // KEY1断开 → 强制关闭继电器
+  if (!key1_is_on()) {
+    relay_off();
+    relay_state = 0;
+  }
+  }
+
+  // 处理KEY2（轻触按键）：仅当KEY1导通（使能）时，按下才切换继电器状态
+  if (key2_edge) {
+    key2_edge = 0;  // 清零事件标志，防止重复触发
+    
+    // 关键：判断KEY1是否处于导通（按下）状态，仅此时KEY2有效
+    if (key1_is_on()) {
+      relay_state = !relay_state;  // 切换继电器状态
+      if (relay_state) {
+        relay_on();   // 灯亮 + 风扇转
+      } else {
+        relay_off();  // 灯灭 + 风扇停
+      }
+    }
+    // KEY1未导通时，KEY2按下无任何反应
+  }
 }

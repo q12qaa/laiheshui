@@ -1,38 +1,99 @@
+/*
+ * exti.cpp — 外部中断实现（第4课时核心）
+ * =====================================
+ *   exti_init()    绑定中断（调用 key_init 初始化引脚）
+ *   exti_update()  状态机消抖（loop 中每帧调用）
+ *
+ *   KEY1 (CHANGE): 扳动 → 消抖 → 更新 key1_stable → 通知主程序
+ *   KEY2 (RISING): 按下 → 消抖 → 确认 → 通知主程序 → 等松手
+ */
+
 #include "exti.h"
-#include "key.h"
-#include "jidianqi.h"
 
-extern RelayControl relay;
+// ---- 状态机 ----
+#define STATE_IDLE       0
+#define STATE_DEBOUNCE   1
+#define STATE_CONFIRMED  2
 
-// 非阻塞消抖变量
-static uint32_t last_key_time = 0;
-const uint32_t DEBOUNCE_MS = 50;
+// KEY1
+static uint8_t      k1_state = STATE_IDLE;
+static unsigned long k1_time = 0;
+static int          k1_stable = 0;        // 消抖后值 (下拉: LOW=弹起)
+volatile int        key1_edge = 0;
 
-// 中断函数提前声明
-void key_isr(void);
+// KEY2
+static uint8_t      k2_state = STATE_IDLE;
+static unsigned long k2_time = 0;
+volatile int        key2_edge = 0;
 
+volatile int relay_state = 0;
+
+// ---- ISR 前向声明 ----
+static void IRAM_ATTR k1_isr(void);
+static void IRAM_ATTR k2_isr(void);
+
+// ==================== 初始化 ====================
 void exti_init(void)
 {
-    key_init();
-    // 绑定中断：下降沿触发（按键按下）
-    attachInterrupt(digitalPinToInterrupt(KEY_INT_PIN), key_isr, FALLING);
+    key_init();   // 初始化 KEY1/KEY2 引脚（key.cpp）
+
+    attachInterrupt(digitalPinToInterrupt(KEY1_PIN), k1_isr, CHANGE);
+    attachInterrupt(digitalPinToInterrupt(KEY2_PIN), k2_isr, RISING);
+
+    k1_stable = digitalRead(KEY1_PIN);
 }
 
-// 【中断服务函数】按键触发时自动进来
-void key_isr(void)
-{
-    uint32_t now = millis();
+// ==================== ISR（PPT: 快进快出，只记时间） ====================
 
-    // 非阻塞消抖：50ms内只触发一次
-    if (now - last_key_time > DEBOUNCE_MS)
-    {
-        // 确认按键真的按下
-        if (KEY == 0)
-        {
-            relay.toggle();       // 翻转继电器
-            Serial.print("中断触发 → 继电器: ");
-            Serial.println(relay.getState() ? "吸合 [ON]" : "断开 [OFF]");
+static void IRAM_ATTR k1_isr(void)
+{
+    if (k1_state != STATE_IDLE) return;
+    k1_state = STATE_DEBOUNCE;
+    k1_time  = millis();
+}
+
+static void IRAM_ATTR k2_isr(void)
+{
+    if (k2_state != STATE_IDLE) return;
+    k2_state = STATE_DEBOUNCE;
+    k2_time  = millis();
+}
+
+// ==================== 消抖（loop 每帧调用） ====================
+
+void exti_update(void)
+{
+    unsigned long now = millis();
+
+    // KEY1 (CHANGE): 消抖后确认电平变化
+    if (k1_state == STATE_DEBOUNCE && (now - k1_time >= DEBOUNCE_MS)) {
+        int raw = digitalRead(KEY1_PIN);
+        if (raw != k1_stable) {
+            k1_stable = raw;
+            key1_edge = 1;                 // 通知主程序
         }
-        last_key_time = now;
+        k1_state = STATE_IDLE;
     }
+
+    // KEY2 (RISING): 消抖后确认按下
+    if (k2_state == STATE_DEBOUNCE && (now - k2_time >= DEBOUNCE_MS)) {
+        if (digitalRead(KEY2_PIN) == HIGH) {
+            key2_edge = 1;                 // 确认按下
+            k2_state  = STATE_CONFIRMED;   // 等松手
+        } else {
+            k2_state = STATE_IDLE;         // 毛刺
+        }
+    }
+
+    // KEY2 等松手后回到空闲
+    if (k2_state == STATE_CONFIRMED && digitalRead(KEY2_PIN) == LOW) {
+        k2_state = STATE_IDLE;
+    }
+}
+
+// ==================== 对外接口 ====================
+
+int key1_is_on(void)
+{
+    return (k1_stable == HIGH);            // 下拉: HIGH=导通
 }

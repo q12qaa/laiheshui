@@ -1,21 +1,21 @@
 #include "exti.h"
 #include "relay.h"
+#include "adc.h"
 
 enum State { S00, S10, S01, S11 };
 enum State current_state = S00;
 int step = 0;
 
-// 长按配置
 unsigned long key2_down_time = 0;
 bool key2_holding = false;
-const unsigned int LONG_PRESS_MIN = 1000;  // 1秒
-const unsigned int LONG_PRESS_MAX = 2000;  // 2秒
+const unsigned int LONG_PRESS_MIN = 1000;
 
-// ===================== 核心：模式切换标志 =====================
-bool is_auto_mode = true;  // 默认：自动模式
-// ============================================================
+bool is_auto_mode = true;
 
-// 设置继电器
+// 阈值设置（按你要求）
+#define LIGHT_THRESHOLD 1500   // ADC>1500=暗→开灯
+#define TEMP_THRESHOLD  30.0f  // 温度>30℃→开风扇
+
 void setRelay(enum State s) {
   switch (s) {
     case S00: digitalWrite(6, LOW);  digitalWrite(7, LOW);  break;
@@ -29,9 +29,10 @@ void setup() {
   Serial.begin(115200);
   exti_init();
   relay_init();
+  adc_init();
   relay_off();
   setRelay(S00);
-  Serial.println("系统初始化完成，默认：自动模式");
+  Serial.println("===== 系统启动：光敏灯 + DS18B20温度风扇 =====");
 }
 
 void loop() {
@@ -41,66 +42,55 @@ void loop() {
   if (key1_edge) {
     key1_edge = 0;
     if (!key1_is_on()) {
-      // KEY1 断开 → 全部关闭
       is_auto_mode = true;
       current_state = S00;
       setRelay(S00);
       step = 0;
       key2_holding = false;
-      Serial.println("KEY1 断开 → 全部关闭，复位到自动模式");
-    } else {
-      // KEY1 闭合 → 上电
-      Serial.println("KEY1 闭合 → 系统已上电");
+      Serial.println("KEY1 断开 → 全部关闭");
     }
   }
 
-  // KEY1 没开，直接跳过所有操作
   if (!key1_is_on()) {
     key2_holding = false;
     return;
   }
 
-  // ===================== KEY2 按下：开始计时 =====================
+  // ===================== KEY2 按下 =====================
   if (key2_edge) {
     key2_edge = 0;
     key2_down_time = millis();
     key2_holding = true;
   }
 
-  // ===================== 长按 KEY2：切换自动/手动模式 =====================
-  if (key2_holding) {
-    unsigned long hold_time = millis() - key2_down_time;
-    
-    // 长按 1~2 秒：切换模式（自动 ↔ 手动）
-    if (hold_time >= LONG_PRESS_MIN && hold_time <= LONG_PRESS_MAX) {
-      is_auto_mode = !is_auto_mode;  // 取反：切换模式
-      key2_holding = false;          // 防止重复触发
+  // ===================== 长按切换模式 =====================
+  static bool long_trig = false;
+  if (key2_holding && !long_trig) {
+    unsigned long t = millis() - key2_down_time;
+    if (t >= LONG_PRESS_MIN) {
+      long_trig = true;
+      is_auto_mode = !is_auto_mode;
+      current_state = S00;
+      setRelay(S00);
+      step = 0;
 
       if (is_auto_mode) {
-        current_state = S00;
-        setRelay(S00);
-        step = 0;
-        Serial.println("===== 切换为：自动模式 =====");
+        Serial.println("\n===== 自动模式：光敏灯 + 温度风扇 =====");
       } else {
-        
-        Serial.println("===== 切换为：手动模式 =====");
+        Serial.println("\n===== 手动模式 =====");
       }
     }
-
-    
   }
 
-  // ===================== KEY2 松手：短按（仅手动模式有效） =====================
-  static bool last_key2 = false;
-  bool now_key2 = (digitalRead(KEY2_PIN) == HIGH);
-  
-  // 检测松手
-  if (last_key2 && !now_key2 && key2_holding) {
+  // ===================== 松手检测（短按修复） =====================
+  static bool last_k2 = false;
+  bool now_k2 = (digitalRead(KEY2_PIN) == HIGH);
+
+  if (last_k2 && !now_k2) {
     unsigned long hold = millis() - key2_down_time;
 
-    // 短按（小于1秒）
-    if (hold < LONG_PRESS_MIN) {
-      if (!is_auto_mode) {  // 只有手动模式才响应
+    if (key2_holding && hold < LONG_PRESS_MIN) {
+      if (!is_auto_mode) {
         step++;
         switch (step) {
           case 1: current_state = S10; break;
@@ -111,12 +101,49 @@ void loop() {
           case 6: current_state = S00; step = 0; break;
         }
         setRelay(current_state);
-        Serial.print("手动模式 → 短按 step: "); Serial.println(step);
-      } else {
-        Serial.println("自动模式 → 短按无效");
+        Serial.print("手动 step: ");
+        Serial.println(step);
       }
     }
+
     key2_holding = false;
+    long_trig = false;
   }
-  last_key2 = now_key2;
+  last_k2 = now_k2;
+
+  // ===================== 自动模式：光敏 + DS18B20 =====================
+  if (is_auto_mode) {
+    int light = read_light_adc();
+    float temp = read_temperature();
+
+    Serial.print("光敏ADC:");
+    Serial.print(light);
+    Serial.print("  |电压:");       
+    Serial.print(read_light_voltage()); 
+    Serial.print(" 温度:");
+    Serial.print(temp);
+    Serial.print("℃ | ");
+
+    // 按你要求：电压高=光线暗→开灯；电压低=光线亮→关灯
+    bool light_on = (light > LIGHT_THRESHOLD);
+    bool fan_on  = (temp > TEMP_THRESHOLD);
+
+    if (light_on && fan_on) {
+      current_state = S11;
+      Serial.println("暗 + 热 → 灯+风扇全开");
+    } else if (light_on) {
+      current_state = S10;
+      Serial.println("暗 → 开灯");
+    } else if (fan_on) {
+      current_state = S01;
+      Serial.println("热 → 开风扇");
+    } else {
+      current_state = S00;
+      Serial.println("亮 + 凉 → 全关");
+    }
+
+    setRelay(current_state);
+  }
+
+  delay(80); // 降低采样频率，保证DS18B20稳定
 }

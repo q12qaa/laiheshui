@@ -1,3 +1,4 @@
+#include "laiheshui_wifi.h"
 #include "exti.h"
 #include "relay.h"
 #include "adc.h"
@@ -13,18 +14,15 @@ const unsigned int LONG_PRESS_MIN = 1000;
 
 bool is_auto_mode = true;
 
-// 阈值设置（按你要求）
-#define LUX_THRESHOLD    225.0f    // LUX ≤ 225 = 暗 → 开灯
-#define TEMP_THRESHOLD   32.0f     // 温度>32℃→开风扇
+#define LUX_THRESHOLD    225.0f
+#define TEMP_THRESHOLD   32.0f
 
-// 全局传感器变量
 int g_light_val = 0;
 float g_temp_val = 25.0f;
 bool g_led_on = false;
 bool g_fan_on = false;
 float g_lux_val = 0.0f;
 
-// 光照换算公式（完全按你给的）
 float convertAdcToLux(int rawADC) {
   int reversedADC = 4095 - rawADC;
   return (reversedADC * reversedADC) / 30000.0f;
@@ -65,15 +63,26 @@ void setup() {
   relay_init();
   adc_init();
   oled_init();
+  lhswifi_init();
   relay_off();
   setRelay(S00);
   Serial.println("===== 系统启动完成 =====");
+
+  if (lhswifi_is_connected()) {
+    u8g2.clearBuffer();
+    u8g2.setFont(u8g2_font_wqy12_t_gb2312);
+    u8g2.drawUTF8(20, 20, "WiFi连接成功");
+    u8g2.drawUTF8(10, 40, "IP:");
+    u8g2.drawUTF8(35, 40, lhswifi_get_ip().c_str());
+    u8g2.sendBuffer();
+    delay(3000);
+  }
 }
 
 void loop() {
   exti_update();
+  lhswifi_check_reconnect();
 
-  // 读取传感器并换算LUX
   g_light_val = read_light_adc();
   g_temp_val = read_temperature();
   g_lux_val = convertAdcToLux(g_light_val);
@@ -91,25 +100,47 @@ void loop() {
     } else {
       Serial.println("KEY1 打开 → 系统运行");
     }
-    oled_update(is_auto_mode, key1_is_on(), g_lux_val, LUX_THRESHOLD,
-                g_temp_val, TEMP_THRESHOLD, g_led_on, g_fan_on);
+    oled_update(is_auto_mode, key1_is_on(), g_lux_val, LUX_THRESHOLD, g_temp_val, TEMP_THRESHOLD, g_led_on, g_fan_on);
   }
 
+  // ===================== KEY1 关闭：只显示界面，长按3秒配网 =====================
   if (!key1_is_on()) {
+    static unsigned long key2_press_start = 0;
+    static bool key2_is_pressing = false;
+    static bool reconfig_triggered = false;
+
+    if (key2_edge) {
+      key2_edge = 0;
+      key2_press_start = millis();
+      key2_is_pressing = true;
+      reconfig_triggered = false;
+    }
+
+    if (key2_is_pressing && digitalRead(KEY2_PIN) == HIGH && !reconfig_triggered) {
+      if (millis() - key2_press_start >= 3000) {
+        reconfig_triggered = true;
+        key2_is_pressing = false;
+        Serial.println("\n长按3秒 → 重新配网");
+        lhswifi_reconfig();
+      }
+    }
+
+    if (digitalRead(KEY2_PIN) == LOW) {
+      key2_is_pressing = false;
+    }
+
     key2_holding = false;
-    oled_update(is_auto_mode, false, g_lux_val, LUX_THRESHOLD,
-                g_temp_val, TEMP_THRESHOLD, g_led_on, g_fan_on);
+    oled_update(is_auto_mode, key1_is_on(), g_lux_val, LUX_THRESHOLD, g_temp_val, TEMP_THRESHOLD, g_led_on, g_fan_on);
     return;
   }
 
-  // ===================== KEY2 按下 =====================
+  // ===================== KEY1 打开：正常逻辑 =====================
   if (key2_edge) {
     key2_edge = 0;
     key2_down_time = millis();
     key2_holding = true;
   }
 
-  // ===================== 长按切换模式 =====================
   static bool long_trig = false;
   if (key2_holding && !long_trig) {
     unsigned long t = millis() - key2_down_time;
@@ -119,17 +150,13 @@ void loop() {
       current_state = S00;
       setRelay(S00);
       step = 0;
-
       Serial.println(is_auto_mode ? "切换到：自动模式" : "切换到：手动模式");
-      oled_update(is_auto_mode, key1_is_on(), g_lux_val, LUX_THRESHOLD,
-                  g_temp_val, TEMP_THRESHOLD, g_led_on, g_fan_on);
+      oled_update(is_auto_mode, key1_is_on(), g_lux_val, LUX_THRESHOLD, g_temp_val, TEMP_THRESHOLD, g_led_on, g_fan_on);
     }
   }
 
-  // ===================== 短按手动控制 =====================
   static bool last_k2 = false;
   bool now_k2 = (digitalRead(KEY2_PIN) == HIGH);
-
   if (last_k2 && !now_k2) {
     unsigned long hold = millis() - key2_down_time;
     if (key2_holding && hold < LONG_PRESS_MIN) {
@@ -146,8 +173,7 @@ void loop() {
         setRelay(current_state);
         Serial.print("手动步骤：");
         Serial.println(step);
-        oled_update(is_auto_mode, key1_is_on(), g_lux_val, LUX_THRESHOLD,
-                    g_temp_val, TEMP_THRESHOLD, g_led_on, g_fan_on);
+        oled_update(is_auto_mode, key1_is_on(), g_lux_val, LUX_THRESHOLD, g_temp_val, TEMP_THRESHOLD, g_led_on, g_fan_on);
       }
     }
     key2_holding = false;
@@ -155,14 +181,12 @@ void loop() {
   }
   last_k2 = now_k2;
 
-  // ===================== 自动模式控制 =====================
   if (is_auto_mode) {
     g_led_on = (g_lux_val <= LUX_THRESHOLD);
     g_fan_on = (g_temp_val > TEMP_THRESHOLD);
-
     if (g_led_on && g_fan_on) {
       current_state = S11;
-      Serial.println("光线暗 + 温度高 → 灯+风扇全开");
+      Serial.println("光线暗 + 灯扇全开");
     } else if (g_led_on) {
       current_state = S10;
       Serial.println("光线暗 → 开灯");
@@ -171,31 +195,21 @@ void loop() {
       Serial.println("温度高 → 开风扇");
     } else {
       current_state = S00;
-      Serial.println("光线亮 + 温度正常 → 全关");
+      Serial.println("光线亮 + 全部关闭");
     }
     setRelay(current_state);
   }
 
-  // ===================== OLED 实时刷新 =====================
   static unsigned long last_oled_refresh = 0;
   if (millis() - last_oled_refresh > 100) {
-    oled_update(
-      is_auto_mode,
-      key1_is_on(),
-      g_lux_val,
-      LUX_THRESHOLD,
-      (g_temp_val == -999.0f) ? 0.0f : g_temp_val,
-      TEMP_THRESHOLD,
-      g_led_on,
-      g_fan_on
-    );
+    oled_update(is_auto_mode, key1_is_on(), g_lux_val, LUX_THRESHOLD, g_temp_val, TEMP_THRESHOLD, g_led_on, g_fan_on);
     last_oled_refresh = millis();
   }
 
-  // 串口中文输出
   Serial.print("光照："); Serial.print(g_lux_val, 1);
   Serial.print(" lx  |  温度："); Serial.print(g_temp_val, 1);
-  Serial.println(" ℃");
+  Serial.print(" ℃  |  WiFi:");
+  Serial.println(lhswifi_is_connected() ? lhswifi_get_ip() : "未连接");
 
   delay(80);
 }

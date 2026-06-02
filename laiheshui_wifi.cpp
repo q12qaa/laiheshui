@@ -1,14 +1,15 @@
 #include "laiheshui_wifi.h"
-#include <Preferences.h>  // ESP32 Flash存储库
+#include <Preferences.h>
 
 Preferences prefs;
 static String current_ssid = "";
 static String current_pass = "";
+static bool wifi_started = false;        // 是否已发起过连接
 
 #define WIFI_RECONNECT_INTERVAL 5000
 static unsigned long last_reconnect_time = 0;
 
-// ===================== 串口输入函数 =====================
+// ===================== 串口输入函数（与原来相同） =====================
 static String readSerialInput(unsigned long timeout) {
   String input = "";
   unsigned long start = millis();
@@ -77,16 +78,59 @@ bool loadWiFiFromFlash() {
   return true;
 }
 
-// ===================== 清空Flash（重新配网） =====================
-void clearWiFiFlash() {
+// ===================== 清空Flash =====================
+void wifi_clear_saved_config() {
   prefs.clear();
   current_ssid = "";
   current_pass = "";
   Serial.println("🗑️ 已清空WiFi信息");
 }
 
-// ===================== 连接WiFi（带保存） =====================
-bool connectWiFi(String ssid, String pass) {
+// ===================== 非阻塞发起连接 =====================
+void lhswifi_start_connecting() {
+  if (current_ssid.length() == 0) {
+    Serial.println("⚠️ 无保存的WiFi，请长按KEY2配网");
+    wifi_started = false;
+    return;
+  }
+  Serial.print("正在后台连接：");
+  Serial.println(current_ssid);
+  WiFi.begin(current_ssid.c_str(), current_pass.c_str());
+  wifi_started = true;
+}
+
+// ===================== 初始化（非阻塞） =====================
+void lhswifi_init() {
+  Serial.begin(115200);
+  prefs.begin("wifi_config", false);
+  WiFi.mode(WIFI_MODE_STA);
+  WiFi.disconnect();
+  delay(100);
+
+  if (loadWiFiFromFlash()) {
+    Serial.println("📶 从Flash读取到WiFi：" + current_ssid);
+    lhswifi_start_connecting();   // 异步连接
+  } else {
+    Serial.println("⚠️ 未找到保存的WiFi，请长按KEY2进入配网");
+    wifi_started = false;
+  }
+}
+
+// ===================== 自动重连 =====================
+void lhswifi_check_reconnect() {
+  if (WiFi.status() != WL_CONNECTED && current_ssid.length() > 0) {
+    if (millis() - last_reconnect_time > WIFI_RECONNECT_INTERVAL) {
+      last_reconnect_time = millis();
+      Serial.println("🔌 WiFi断开，自动重连...");
+      WiFi.disconnect();
+      delay(100);
+      WiFi.begin(current_ssid.c_str(), current_pass.c_str());
+    }
+  }
+}
+
+// ===================== 连接WiFi（阻塞，用于配网） =====================
+static bool connectWiFiBlocking(String ssid, String pass) {
   Serial.print("正在连接：");
   Serial.println(ssid);
   WiFi.begin(ssid.c_str(), pass.c_str());
@@ -111,9 +155,9 @@ bool connectWiFi(String ssid, String pass) {
   }
 }
 
-// ===================== 配网入口 =====================
+// ===================== 重新配网（阻塞模式） =====================
 void lhswifi_reconfig() {
-  clearWiFiFlash();
+  wifi_clear_saved_config();
   Serial.println("\n===== 进入重新配网模式 =====");
 
   while (true) {
@@ -132,48 +176,15 @@ void lhswifi_reconfig() {
     String pass = readSerialInput(60000);
     if (pass.length() == 0) continue;
 
-    if (connectWiFi(ssid, pass)) break;
+    if (connectWiFiBlocking(ssid, pass)) break;
     delay(3000);
   }
 }
 
-// ===================== 初始化 =====================
-void lhswifi_init(void) {
-  Serial.begin(115200);
-  prefs.begin("wifi_config", false);  // 打开Flash分区
-  WiFi.mode(WIFI_MODE_STA);
-
-  Serial.println("\n===== ESP32 WiFi 自动登录 =====");
-  
-  // 尝试从Flash读取并直接连接
-  if (loadWiFiFromFlash()) {
-    Serial.println("📶 读取到已保存WiFi：" + current_ssid);
-    if (connectWiFi(current_ssid, current_pass)) {
-      return;
-    }
-  }
-
-  // 没有保存信息 → 进入配网
-  lhswifi_reconfig();
-}
-
-// ===================== 自动重连 =====================
-void lhswifi_check_reconnect(void) {
-  if (WiFi.status() != WL_CONNECTED && current_ssid.length() > 0) {
-    if (millis() - last_reconnect_time > WIFI_RECONNECT_INTERVAL) {
-      last_reconnect_time = millis();
-      Serial.println("🔌 WiFi断开，自动重连...");
-      WiFi.disconnect();
-      delay(100);
-      WiFi.begin(current_ssid.c_str(), current_pass.c_str());
-    }
-  }
-}
-
-bool lhswifi_is_connected(void) {
+bool lhswifi_is_connected() {
   return WiFi.status() == WL_CONNECTED;
 }
 
-String lhswifi_get_ip(void) {
+String lhswifi_get_ip() {
   return WiFi.localIP().toString();
 }

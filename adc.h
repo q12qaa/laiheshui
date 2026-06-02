@@ -6,7 +6,7 @@
 #include <DallasTemperature.h>
 
 // 光敏传感器：IO1（ADC1_CH1）
-#define LIGHT_PIN 1
+#define LIGHT_SENSOR_PIN 1
 
 // DS18B20温度传感器：IO10（DATA引脚）
 #define TEMP_PIN 10

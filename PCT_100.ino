@@ -13,16 +13,18 @@ const unsigned int LONG_PRESS_MIN = 1000;
 
 bool is_auto_mode = true;
 
-#define LUX_THRESHOLD    225.0f    // 光照阈值
-#define TEMP_THRESHOLD   32.0f     // 温度阈值
+// 阈值设置（按你要求）
+#define LUX_THRESHOLD    225.0f    // LUX ≤ 225 = 暗 → 开灯
+#define TEMP_THRESHOLD   32.0f     // 温度>32℃→开风扇
 
+// 全局传感器变量
 int g_light_val = 0;
 float g_temp_val = 25.0f;
 bool g_led_on = false;
 bool g_fan_on = false;
 float g_lux_val = 0.0f;
 
-// 光照计算公式
+// 光照换算公式（完全按你给的）
 float convertAdcToLux(int rawADC) {
   int reversedADC = 4095 - rawADC;
   return (reversedADC * reversedADC) / 30000.0f;
@@ -66,12 +68,12 @@ void setup() {
   relay_off();
   setRelay(S00);
   Serial.println("===== 系统启动完成 =====");
-  
 }
 
 void loop() {
   exti_update();
 
+  // 读取传感器并换算LUX
   g_light_val = read_light_adc();
   g_temp_val = read_temperature();
   g_lux_val = convertAdcToLux(g_light_val);
@@ -89,12 +91,14 @@ void loop() {
     } else {
       Serial.println("KEY1 打开 → 系统运行");
     }
-    oled_update(is_auto_mode, key1_is_on(), g_lux_val, LUX_THRESHOLD, g_temp_val, TEMP_THRESHOLD, g_led_on, g_fan_on);
+    oled_update(is_auto_mode, key1_is_on(), g_lux_val, LUX_THRESHOLD,
+                g_temp_val, TEMP_THRESHOLD, g_led_on, g_fan_on);
   }
 
   if (!key1_is_on()) {
     key2_holding = false;
-    oled_update(is_auto_mode, false, g_lux_val, LUX_THRESHOLD, g_temp_val, TEMP_THRESHOLD, g_led_on, g_fan_on);
+    oled_update(is_auto_mode, false, g_lux_val, LUX_THRESHOLD,
+                g_temp_val, TEMP_THRESHOLD, g_led_on, g_fan_on);
     return;
   }
 
@@ -116,13 +120,9 @@ void loop() {
       setRelay(S00);
       step = 0;
 
-      if (is_auto_mode) {
-        Serial.println("切换到：自动模式");
-      } else {
-        Serial.println("切换到：手动模式");
-      }
-      
-      oled_update(is_auto_mode, key1_is_on(), g_lux_val, LUX_THRESHOLD, g_temp_val, TEMP_THRESHOLD, g_led_on, g_fan_on);
+      Serial.println(is_auto_mode ? "切换到：自动模式" : "切换到：手动模式");
+      oled_update(is_auto_mode, key1_is_on(), g_lux_val, LUX_THRESHOLD,
+                  g_temp_val, TEMP_THRESHOLD, g_led_on, g_fan_on);
     }
   }
 
@@ -146,6 +146,8 @@ void loop() {
         setRelay(current_state);
         Serial.print("手动步骤：");
         Serial.println(step);
+        oled_update(is_auto_mode, key1_is_on(), g_lux_val, LUX_THRESHOLD,
+                    g_temp_val, TEMP_THRESHOLD, g_led_on, g_fan_on);
       }
     }
     key2_holding = false;
@@ -174,7 +176,7 @@ void loop() {
     setRelay(current_state);
   }
 
-  // ===================== OLED 刷新 =====================
+  // ===================== OLED 实时刷新 =====================
   static unsigned long last_oled_refresh = 0;
   if (millis() - last_oled_refresh > 100) {
     oled_update(

@@ -9,7 +9,7 @@
 
 void oled_init(void);
 void oled_update(bool is_auto_mode, bool main_on,
-                 float lux, float lux_threshold,
+                 float lux_val, float lux_threshold,  // 改成float支持小数
                  float temp_val, float temp_threshold,
                  bool led_on, bool fan_on);
 

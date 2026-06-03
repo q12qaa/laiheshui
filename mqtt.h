@@ -5,7 +5,7 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
 
-// MQTT 默认配置
+// MQTT 默认配置（与参考代码一致）
 #define DEFAULT_MQTT_BROKER   "47.98.170.180"
 #define DEFAULT_MQTT_PORT     8081
 #define DEFAULT_MQTT_USER     "dzdx_emqx"
@@ -14,6 +14,9 @@
 
 // Preferences 命名空间
 #define MQTT_PREF_NAMESPACE "mqtt_config"
+
+// 上报间隔（毫秒）→ 改为 2 秒
+#define MQTT_PUBLISH_INTERVAL 2000
 
 // 外部对象声明
 extern WiFiClient espClient;

@@ -26,7 +26,6 @@ void oled_update(bool is_auto_mode, bool main_on,
   u8g2.clearBuffer();
   u8g2.setFont(u8g2_font_wqy12_t_gb2312);
 
-  // 第一行：模式 + 总开关，并在模式后显示 (WiFi) 或 (离线)
   u8g2.setCursor(2, 14);
   u8g2.print("模式:");
   u8g2.print(is_auto_mode ? "自动" : "手动");
@@ -35,15 +34,15 @@ void oled_update(bool is_auto_mode, bool main_on,
   u8g2.print("总:");
   u8g2.print(main_on ? "开" : "关");
 
- // 第二行：光照（显示当前 Lux 和 ADC 阈值）
-u8g2.setCursor(2, 30);
-u8g2.print("光照:");
-u8g2.print(lux_val, 1);
-u8g2.print("/");
-u8g2.print(lux_threshold);
-u8g2.print(" ADC");
+  // 光照（Lux）
+  u8g2.setCursor(2, 30);
+  u8g2.print("光照:");
+  u8g2.print(lux_val, 1);
+  u8g2.print("/");
+  u8g2.print(lux_threshold, 1);
+  u8g2.print(" Lux");
 
-  // 第三行：温度（带 ℃）
+  // 温度
   u8g2.setCursor(2, 46);
   u8g2.print("温度:");
   u8g2.print(temp_val, 1);
@@ -51,7 +50,7 @@ u8g2.print(" ADC");
   u8g2.print(temp_threshold, 1);
   u8g2.print(" ℃");
 
-  // 第四行：灯 + 风扇
+  // 灯+风扇
   u8g2.setCursor(2, 62);
   u8g2.print("灯:");
   u8g2.print(led_on ? "开" : "关");

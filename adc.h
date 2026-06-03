@@ -5,13 +5,12 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 
-// 引脚定义
 #define LIGHT_SENSOR_PIN 1
 #define TEMP_PIN 10
 
-// 阈值变量（在 adc.cpp 中定义）
+// 阈值变量（g_light_threshold 单位为 Lux）
 extern float g_temp_threshold;
-extern int   g_light_threshold;   // ADC原始值
+extern float g_light_threshold;   // Lux 单位
 
 void adc_init(void);
 int read_light_adc(void);

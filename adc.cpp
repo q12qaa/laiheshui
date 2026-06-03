@@ -3,9 +3,9 @@
 OneWire oneWire(TEMP_PIN);
 DallasTemperature sensors(&oneWire);
 
-// 定义阈值变量（初始值可根据需要修改）
+// 定义阈值变量
 float g_temp_threshold = 32.0f;      // 温度阈值（℃）
-int   g_light_threshold = 225;       // 光照阈值（ADC原始值）
+float g_light_threshold = 225.0f;    // 光照阈值（Lux）
 
 void adc_init(void) {
   pinMode(LIGHT_SENSOR_PIN, INPUT);
@@ -27,9 +27,10 @@ float read_light_voltage(void) {
   return read_light_adc() * 3.3f / 4095.0f;
 }
 
+// 使用给定公式：反相ADC = 4095 - rawADC，lux ≈ (反相ADC)^2 / 30000
 float convertAdcToLux(int rawADC) {
-  int reversedADC = 4095 - rawADC;
-  return (reversedADC * reversedADC) / 30000.0f;
+  int inverted = 4095 - rawADC;
+  return (inverted * inverted) / 30000.0f;
 }
 
 float read_temperature(void) {

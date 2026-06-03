@@ -21,7 +21,8 @@ static String mqtt_device_id = DEFAULT_DEVICE_ID;
 
 static bool mqtt_needs_reconnect = false;
 static unsigned long last_publish_time = 0;
-const unsigned long PUBLISH_INTERVAL = 5000;
+static unsigned long last_connect_attempt = 0;
+const unsigned long CONNECT_RETRY_INTERVAL = 5000;  // 重连间隔 5 秒
 
 // 前向声明
 static void mqtt_callback(char* topic, byte* payload, unsigned int length);
@@ -67,12 +68,18 @@ void mqtt_reinit(void) {
     if (mqttClient.connected()) mqttClient.disconnect();
     mqttClient.setServer(mqtt_broker.c_str(), mqtt_port);
     mqtt_needs_reconnect = true;
+    last_connect_attempt = 0;  // 允许立即重连
     Serial.println("[MQTT] 配置已更新，将在下次循环中重新连接");
 }
 
 // ========== 连接管理 ==========
 static bool mqtt_connect() {
     if (mqttClient.connected()) return true;
+    
+    // 避免频繁重连
+    if (millis() - last_connect_attempt < CONNECT_RETRY_INTERVAL) return false;
+    last_connect_attempt = millis();
+    
     Serial.printf("[MQTT] 正在连接 %s:%d ...\n", mqtt_broker.c_str(), mqtt_port);
     if (mqttClient.connect(mqtt_device_id.c_str(), mqtt_user.c_str(), mqtt_password.c_str())) {
         Serial.println("[MQTT] 连接成功");
@@ -82,6 +89,7 @@ static bool mqtt_connect() {
         } else {
             Serial.println("[MQTT] 订阅失败");
         }
+        // 连接成功后立即上报一次状态
         mqtt_publish_status();
         return true;
     } else {
@@ -98,22 +106,26 @@ void mqtt_init(void) {
 }
 
 void mqtt_loop(void) {
+    // 只有 WiFi 已连接且不在离线模式时才尝试 MQTT
     if (!lhswifi_is_connected()) return;
 
+    // 处理强制重连请求
     if (mqtt_needs_reconnect) {
         if (mqttClient.connected()) mqttClient.disconnect();
         mqtt_needs_reconnect = false;
     }
 
+    // 维护连接
     if (!mqttClient.connected()) {
         mqtt_connect();
     } else {
         mqttClient.loop();
     }
 
+    // 定时上报（间隔 MQTT_PUBLISH_INTERVAL）
     if (mqttClient.connected()) {
         unsigned long now = millis();
-        if (now - last_publish_time >= PUBLISH_INTERVAL) {
+        if (now - last_publish_time >= MQTT_PUBLISH_INTERVAL) {
             mqtt_publish_status();
             last_publish_time = now;
         }
@@ -124,19 +136,19 @@ bool mqtt_is_connected(void) {
     return mqttClient.connected();
 }
 
-// ========== 状态上报 ==========
+// ========== 状态上报（保持原有逻辑） ==========
 void mqtt_publish_status(void) {
     if (!mqttClient.connected()) return;
     String statusTopic = "chemctrl/" + mqtt_device_id + "/status";
     StaticJsonDocument<256> doc;
     doc["temperature"] = read_temperature();
-    doc["light"] = read_light_adc();
+    doc["light"] = convertAdcToLux(read_light_adc());   // 上报 Lux 值
     doc["mode"] = is_auto_mode ? "auto" : "manual";
     doc["key1_lock"] = key1_is_on();
     doc["relay3"] = g_led_on;
     doc["relay4"] = g_fan_on;
     doc["temp_threshold"] = g_temp_threshold;
-    doc["light_threshold"] = g_light_threshold;
+    doc["light_threshold"] = g_light_threshold;        // 阈值也是 Lux
 
     char buffer[256];
     size_t n = serializeJson(doc, buffer);
@@ -147,7 +159,7 @@ void mqtt_publish_status(void) {
     }
 }
 
-// ========== 命令回调 ==========
+// ========== 远程命令回调（完整支持所有协议命令） ==========
 static void mqtt_callback(char* topic, byte* payload, unsigned int length) {
     char message[length + 1];
     memcpy(message, payload, length);
@@ -164,6 +176,7 @@ static void mqtt_callback(char* topic, byte* payload, unsigned int length) {
     const char* cmd = doc["cmd"];
     if (!cmd) return;
 
+    // === set_relay 命令 ===
     if (strcmp(cmd, "set_relay") == 0) {
         int relay = doc["relay"];
         bool value = doc["value"];
@@ -172,32 +185,30 @@ static void mqtt_callback(char* topic, byte* payload, unsigned int length) {
             return;
         }
         if (!is_auto_mode) {
+            bool new_led = g_led_on;
+            bool new_fan = g_fan_on;
             if (relay == 3) {
-                if (value) {
-                    if (g_led_on && !g_fan_on) current_state = S11;
-                    else if (!g_led_on && !g_fan_on) current_state = S10;
-                } else {
-                    if (g_fan_on) current_state = S01;
-                    else current_state = S00;
-                }
-                setRelay(current_state);
-                Serial.printf("[MQTT] 设置灯 = %s\n", value ? "开" : "关");
+                new_led = value;
             } else if (relay == 4) {
-                if (value) {
-                    if (g_led_on && !g_fan_on) current_state = S11;
-                    else if (!g_led_on && !g_fan_on) current_state = S01;
-                } else {
-                    if (g_led_on) current_state = S10;
-                    else current_state = S00;
-                }
-                setRelay(current_state);
-                Serial.printf("[MQTT] 设置风机 = %s\n", value ? "开" : "关");
+                new_fan = value;
             }
+            if (new_led && new_fan) {
+                current_state = S11;
+            } else if (new_led && !new_fan) {
+                current_state = S10;
+            } else if (!new_led && new_fan) {
+                current_state = S01;
+            } else {
+                current_state = S00;
+            }
+            setRelay(current_state);
+            Serial.printf("[MQTT] 设置灯=%s 风扇=%s\n", new_led?"开":"关", new_fan?"开":"关");
         } else {
             Serial.println("[MQTT] 当前为自动模式，请先切换至手动模式再控制");
         }
         mqtt_publish_status();
     }
+    // === set_mode 命令 ===
     else if (strcmp(cmd, "set_mode") == 0) {
         const char* mode = doc["mode"];
         if (strcmp(mode, "auto") == 0) {
@@ -209,9 +220,11 @@ static void mqtt_callback(char* topic, byte* payload, unsigned int length) {
         }
         mqtt_publish_status();
     }
+    // === get_status 命令 ===
     else if (strcmp(cmd, "get_status") == 0) {
         mqtt_publish_status();
     }
+    // === set_threshold 命令 ===
     else if (strcmp(cmd, "set_threshold") == 0) {
         if (doc.containsKey("temp")) {
             g_temp_threshold = doc["temp"];
@@ -219,13 +232,17 @@ static void mqtt_callback(char* topic, byte* payload, unsigned int length) {
         }
         if (doc.containsKey("light")) {
             g_light_threshold = doc["light"];
-            Serial.printf("[MQTT] 光照阈值更新为 %d\n", g_light_threshold);
+            Serial.printf("[MQTT] 光照阈值更新为 %.1f Lux\n", g_light_threshold);
         }
         mqtt_publish_status();
     }
+    // === reboot 命令 ===
     else if (strcmp(cmd, "reboot") == 0) {
         Serial.println("[MQTT] 收到重启命令，设备即将重启");
         delay(1000);
         ESP.restart();
+    }
+    else {
+        Serial.printf("[MQTT] 未知命令: %s\n", cmd);
     }
 }

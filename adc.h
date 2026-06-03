@@ -5,24 +5,18 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 
-// 光敏传感器：IO1（ADC1_CH1）
+// 引脚定义
 #define LIGHT_SENSOR_PIN 1
-
-// DS18B20温度传感器：IO10（DATA引脚）
 #define TEMP_PIN 10
 
-// 光照和温度阈值（可在此调整）
-#define LUX_THRESHOLD    225.0f
-#define TEMP_THRESHOLD   32.0f
+// 阈值变量（在 adc.cpp 中定义）
+extern float g_temp_threshold;
+extern int   g_light_threshold;   // ADC原始值
 
 void adc_init(void);
-
-// 光敏相关
 int read_light_adc(void);
 float read_light_voltage(void);
-float convertAdcToLux(int rawADC);   // 新增：ADC转Lux
-
-// DS18B20温度相关
+float convertAdcToLux(int rawADC);   // ADC原始值 -> Lux
 float read_temperature(void);
 
 #endif

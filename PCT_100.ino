@@ -4,9 +4,10 @@
 #include "adc.h"
 #include "oled.h"
 #include "rgb.h"
+#include "mqtt.h"
 #include <esp_system.h>
 
-// 局部变量（不需要跨文件访问）
+// 局部变量
 int step = 0;
 unsigned long key2_down_time = 0;
 bool key2_holding = false;
@@ -16,26 +17,25 @@ int g_light_val = 0;
 float g_temp_val = 25.0f;
 float g_lux_val = 0.0f;
 
-// ===================== 初始化 =====================
 void setup() {
   Serial.begin(115200);
   
   rgb_init();
-  rgb_boot_flash();      // 开机彩虹闪烁3次
-  rgb_set_color(RGB_RED); // 初始未连接状态红色
+  rgb_boot_flash();
+  rgb_set_color(RGB_RED);
   
   exti_init();
   relay_init();
   adc_init();
   oled_init();
   
-  lhswifi_init();        // 尝试自动连接WiFi（非阻塞）
+  lhswifi_init();
+  mqtt_init();            // 初始化 MQTT（加载配置）
   
   relay_off();
   setRelay(S00);
   Serial.println("===== 系统启动完成 =====");
 
-  // 如果WiFi已连接，显示IP
   if (lhswifi_is_connected()) {
     u8g2.clearBuffer();
     u8g2.setFont(u8g2_font_wqy12_t_gb2312);
@@ -46,7 +46,6 @@ void setup() {
     delay(3000);
   }
 
-  // 启动后打印操作说明
   Serial.println("\n📌 操作说明：");
   Serial.println("  KEY1：总开关（断开=全部关闭）");
   Serial.println("  KEY1闭合时：");
@@ -61,16 +60,18 @@ void setup() {
   Serial.println("  clearwifi  - 清除Flash中的WiFi配置");
   Serial.println("  reboot     - 重启设备");
   Serial.println("  wifiinfo   - 查看当前WiFi信息");
+  Serial.println("  setmqtt    - 交互式配置MQTT参数（IP/端口/用户名/密码/设备ID）");
+  Serial.println("  showmqtt   - 显示当前MQTT配置");
+  Serial.println("  resetmqtt  - 重置MQTT配置为默认值");
 
   update_rgb_status();
 }
 
-// ===================== 主循环 =====================
 void loop() {
   handleSerialCommands();
   exti_update();
+  mqtt_loop();            // MQTT 重连和上报
   
-  // 非离线模式下进行WiFi重连检查
   if (!lhswifi_is_offline()) {
     lhswifi_check_reconnect();
   }
@@ -93,9 +94,9 @@ void loop() {
     } else {
       Serial.println("KEY1 打开 → 系统开始运行");
     }
-    oled_update(is_auto_mode, key1_is_on(), g_lux_val, LUX_THRESHOLD,
-                g_temp_val, TEMP_THRESHOLD, g_led_on, g_fan_on,
-                lhswifi_is_connected());
+    oled_update(is_auto_mode, key1_is_on(), g_lux_val, g_light_threshold,
+            g_temp_val, g_temp_threshold, g_led_on, g_fan_on,
+            lhswifi_is_connected());
   }
 
   // KEY1 关闭：待机模式 + 长按5秒清除WiFi配置并重启
@@ -129,9 +130,9 @@ void loop() {
     }
 
     key2_holding = false;
-    oled_update(is_auto_mode, key1_is_on(), g_lux_val, LUX_THRESHOLD,
-                g_temp_val, TEMP_THRESHOLD, g_led_on, g_fan_on,
-                lhswifi_is_connected());
+    oled_update(is_auto_mode, key1_is_on(), g_lux_val, g_light_threshold,
+            g_temp_val, g_temp_threshold, g_led_on, g_fan_on,
+            lhswifi_is_connected());
     return;
   }
 
@@ -152,9 +153,9 @@ void loop() {
       step = 0;
       Serial.println(is_auto_mode ? "切换到：自动模式" : "切换到：手动模式");
       key_feedback_blink();
-      oled_update(is_auto_mode, key1_is_on(), g_lux_val, LUX_THRESHOLD,
-                  g_temp_val, TEMP_THRESHOLD, g_led_on, g_fan_on,
-                  lhswifi_is_connected());
+      oled_update(is_auto_mode, key1_is_on(), g_lux_val, g_light_threshold,
+            g_temp_val, g_temp_threshold, g_led_on, g_fan_on,
+            lhswifi_is_connected());
     }
   }
 
@@ -177,8 +178,8 @@ void loop() {
         Serial.print("手动步骤：");
         Serial.println(step);
         key_feedback_blink();
-        oled_update(is_auto_mode, key1_is_on(), g_lux_val, LUX_THRESHOLD,
-                    g_temp_val, TEMP_THRESHOLD, g_led_on, g_fan_on,
+        oled_update(is_auto_mode, key1_is_on(), g_lux_val, convertAdcToLux(g_light_threshold),
+                    g_temp_val, g_temp_threshold, g_led_on, g_fan_on,
                     lhswifi_is_connected());
       } else {
         Serial.println("自动模式下短按KEY2无效，请长按切换手动模式");
@@ -190,10 +191,11 @@ void loop() {
   }
   last_k2 = now_k2;
 
-  // 自动模式逻辑
+  // 自动模式逻辑（使用 ADC 原始值比较）
   if (is_auto_mode) {
-    g_led_on = (g_lux_val <= LUX_THRESHOLD);
-    g_fan_on = (g_temp_val > TEMP_THRESHOLD);
+    int light_adc = read_light_adc();
+    g_led_on = (light_adc <= 225.0f);
+    g_fan_on = (g_temp_val > g_temp_threshold);
     if (g_led_on && g_fan_on) {
       current_state = S11;
     } else if (g_led_on) {
@@ -208,16 +210,16 @@ void loop() {
 
   static unsigned long last_oled_refresh = 0;
   if (millis() - last_oled_refresh > 100) {
-    oled_update(is_auto_mode, key1_is_on(), g_lux_val, LUX_THRESHOLD,
-                g_temp_val, TEMP_THRESHOLD, g_led_on, g_fan_on,
-                lhswifi_is_connected());
+    oled_update(is_auto_mode, key1_is_on(), g_lux_val, g_light_threshold,
+            g_temp_val, g_temp_threshold, g_led_on, g_fan_on,
+            lhswifi_is_connected());
     last_oled_refresh = millis();
   }
 
   static unsigned long last_serial_print = 0;
   if (millis() - last_serial_print > 2000) {
-    Serial.print("光照："); Serial.print(g_lux_val, 1);
-    Serial.print(" lx  |  温度："); Serial.print(g_temp_val, 1);
+    Serial.print("光照ADC："); Serial.print(read_light_adc());
+    Serial.print("  |  温度："); Serial.print(g_temp_val, 1);
     Serial.print(" ℃  |  WiFi:");
     if (lhswifi_is_connected()) Serial.print(lhswifi_get_ip());
     else Serial.print("未连接");

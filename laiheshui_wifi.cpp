@@ -1,19 +1,19 @@
 #include "laiheshui_wifi.h"
-#include "rgb.h"
-#include "relay.h"
-#include <esp_system.h>
+#include "mqtt.h"          // 新增，用于 MQTT 命令
+#include "rgb.h"           // 用于 rgb_blink_once
 #include <Preferences.h>
+#include <esp_system.h>
 
 Preferences prefs;
 static String current_ssid = "";
 static String current_pass = "";
 static bool wifi_started = false;
-static bool offline_mode = false;   // 离线模式标志
+static bool offline_mode = false;
 
 #define WIFI_RECONNECT_INTERVAL 5000
 static unsigned long last_reconnect_time = 0;
 
-// ===================== 串口输入辅助（仅供交互式配网使用） =====================
+// ========== 串口输入辅助 ==========
 static String readSerialInput(unsigned long timeout) {
   String input = "";
   unsigned long start = millis();
@@ -37,7 +37,7 @@ static String readSerialInput(unsigned long timeout) {
   return "";
 }
 
-// ===================== 扫描WiFi网络（美化版） =====================
+// ========== 扫描 WiFi ==========
 int lhswifi_scan() {
   Serial.println("\n🔍 正在扫描附近WiFi网络...");
   WiFi.mode(WIFI_MODE_STA);
@@ -60,33 +60,30 @@ int lhswifi_scan() {
   return n;
 }
 
-// 打印扫描结果（供串口命令使用）
 void wifi_scan_and_print() {
   int n = lhswifi_scan();
   WiFi.scanDelete();
 }
 
-// ===================== 连接指定WiFi（阻塞，带IP等待） =====================
-bool lhswifi_connect(const char* ssid, const char* password, int timeout_sec) {
+// ========== 连接指定 WiFi（阻塞） ==========
+bool lhswifi_connect(const char* ssid, const char* password, int timeout_sec = 15) {
   offline_mode = false;
   Serial.printf("🚀 正在连接 %s ...\n", ssid);
   WiFi.begin(ssid, password);
-  int timeout = timeout_sec * 2; // 每500ms一次，所以乘以2
+  int timeout = timeout_sec * 2;
   while (WiFi.status() != WL_CONNECTED && timeout-- > 0) {
     delay(500);
     Serial.print(".");
   }
   Serial.println();
   if (WiFi.status() == WL_CONNECTED) {
-    // 等待获取有效IP
-    int ip_wait = 20; // 最多等10秒
+    int ip_wait = 20;
     while ((WiFi.localIP().toString() == "0.0.0.0" || WiFi.localIP().toString() == "0") && ip_wait-- > 0) {
       delay(500);
     }
     Serial.println("✅ WiFi连接成功！");
     Serial.print("📡 IP地址: ");
     Serial.println(WiFi.localIP());
-    // 保存到Flash
     prefs.putString("ssid", ssid);
     prefs.putString("pass", password);
     current_ssid = ssid;
@@ -98,7 +95,7 @@ bool lhswifi_connect(const char* ssid, const char* password, int timeout_sec) {
   }
 }
 
-// ===================== 保存/加载配置 =====================
+// ========== 保存/加载 ==========
 void saveWiFiToFlash(String ssid, String pass) {
   prefs.putString("ssid", ssid);
   prefs.putString("pass", pass);
@@ -113,7 +110,6 @@ bool loadWiFiFromFlash() {
   return true;
 }
 
-// 清空Flash中的WiFi配置
 void wifi_clear_saved_config() {
   prefs.clear();
   current_ssid = "";
@@ -121,7 +117,6 @@ void wifi_clear_saved_config() {
   Serial.println("🗑️ WiFi配置已清除");
 }
 
-// ===================== 离线模式管理 =====================
 void lhswifi_set_offline(bool offline) {
   offline_mode = offline;
   if (offline_mode) {
@@ -140,7 +135,6 @@ bool lhswifi_is_offline(void) {
   return offline_mode;
 }
 
-// ===================== 非阻塞连接 =====================
 void lhswifi_start_connecting() {
   if (offline_mode) return;
   if (current_ssid.length() == 0) {
@@ -154,7 +148,6 @@ void lhswifi_start_connecting() {
   wifi_started = true;
 }
 
-// ===================== 初始化 =====================
 void lhswifi_init() {
   prefs.begin("wifi_config", false);
   WiFi.mode(WIFI_MODE_STA);
@@ -167,7 +160,6 @@ void lhswifi_init() {
   }
 }
 
-// ===================== 自动重连 =====================
 void lhswifi_check_reconnect() {
   if (offline_mode) return;
   if (WiFi.status() != WL_CONNECTED && current_ssid.length() > 0) {
@@ -196,26 +188,21 @@ void lhswifi_reconfig() {
   Serial.println("📡 进入交互式配网模式（请使用 connect 命令）");
 }
 
-// ===================== 交互式配网（阻塞，供 connect 命令使用） =====================
+// ========== 交互式配网 ==========
 bool wifi_start_interactive_config() {
   Serial.println("\n=====================================");
   Serial.println("        WiFi 交互式配置模式        ");
   Serial.println("=====================================");
-  
   WiFi.mode(WIFI_STA);
   WiFi.disconnect(true);
   delay(100);
-  
-  String selected_ssid = "";
-  String selected_password = "";
-  
+  String selected_ssid = "", selected_password = "";
   while (true) {
     wifi_scan_and_print();
     Serial.print("请输入要连接的WiFi序号：");
     String idx_str = readSerialInput(30000);
     if (idx_str.isEmpty()) continue;
     int idx = idx_str.toInt();
-    
     int n = WiFi.scanNetworks();
     if (idx < 1 || idx > n) {
       Serial.println("❌ 序号无效");
@@ -232,7 +219,6 @@ bool wifi_start_interactive_config() {
       continue;
     }
     WiFi.scanDelete();
-    
     if (lhswifi_connect(selected_ssid.c_str(), selected_password.c_str(), 15)) {
       offline_mode = false;
       return true;
@@ -243,15 +229,11 @@ bool wifi_start_interactive_config() {
   }
 }
 
-// ===================== 对外模式切换接口（优化后） =====================
 void switch_to_wifi_mode() {
-  // 1. 如果已经连接，直接提示
   if (lhswifi_is_connected()) {
     Serial.println("📶 WiFi已连接，IP: " + lhswifi_get_ip());
     return;
   }
-
-  // 2. 如果有保存的配置，先尝试自动连接（阻塞15秒）
   if (loadWiFiFromFlash()) {
     Serial.println("\n===== 尝试使用已保存的WiFi自动连接 =====");
     if (lhswifi_connect(current_ssid.c_str(), current_pass.c_str(), 15)) {
@@ -264,8 +246,6 @@ void switch_to_wifi_mode() {
   } else {
     Serial.println("\n⚠️ 无保存的WiFi配置，进入交互式配置模式");
   }
-
-  // 3. 自动连接失败或没有保存配置，进入交互式配网
   bool success = wifi_start_interactive_config();
   if (success) {
     offline_mode = false;
@@ -282,7 +262,7 @@ void switch_to_offline_mode() {
   lhswifi_set_offline(true);
 }
 
-// ===================== 辅助查询函数 =====================
+// ========== 辅助查询 ==========
 bool wifi_is_connected() {
   return WiFi.status() == WL_CONNECTED;
 }
@@ -295,9 +275,7 @@ int wifi_get_rssi() {
   return WiFi.RSSI();
 }
 
-
-
-// ===================== 串口命令处理 =====================
+// ========== 串口命令处理（整合 MQTT 配置） ==========
 void handleSerialCommands() {
   if (Serial.available() > 0) {
     String cmd = Serial.readStringUntil('\n');
@@ -306,20 +284,25 @@ void handleSerialCommands() {
 
     if (cmd == "scan") {
       wifi_scan_and_print();
-    } else if (cmd == "connect") {
+    }
+    else if (cmd == "connect") {
       switch_to_wifi_mode();
-    } else if (cmd == "offline") {
+    }
+    else if (cmd == "offline") {
       switch_to_offline_mode();
-    } else if (cmd == "clearwifi") {
+    }
+    else if (cmd == "clearwifi") {
       Serial.println("\n🗑️ 清除Flash中的WiFi配置...");
       wifi_clear_saved_config();
       rgb_blink_once(RGB_RED, 500);
       Serial.println("✅ WiFi配置已清除，重启后仍为离线模式");
-    } else if (cmd == "reboot") {
+    }
+    else if (cmd == "reboot") {
       Serial.println("🔄 设备正在重启...");
       delay(1000);
       ESP.restart();
-    } else if (cmd == "wifiinfo") {
+    }
+    else if (cmd == "wifiinfo") {
       if (lhswifi_is_connected()) {
         Serial.println("\n===== 当前WiFi信息 =====");
         Serial.printf("SSID: %s\n", WiFi.SSID().c_str());
@@ -329,6 +312,51 @@ void handleSerialCommands() {
         Serial.println("⚠️ 当前未连接WiFi");
       }
     }
+    // ========== 新增 MQTT 配置命令 ==========
+    else if (cmd == "setmqtt") {
+      Serial.println("\n===== MQTT 配置向导 =====");
+      Serial.print("请输入 Broker IP 地址（当前: " + mqtt_get_broker() + "）: ");
+      String input = readSerialInput(30000);
+      if (input.length() > 0) mqtt_set_broker(input);
+      
+      Serial.print("请输入端口号（当前: " + String(mqtt_get_port()) + "）: ");
+      input = readSerialInput(30000);
+      if (input.length() > 0) mqtt_set_port((uint16_t)input.toInt());
+      
+      Serial.print("请输入用户名（当前: " + mqtt_get_user() + "）: ");
+      input = readSerialInput(30000);
+      if (input.length() > 0) mqtt_set_user(input);
+      
+      Serial.print("请输入密码（当前: " + mqtt_get_password() + "）: ");
+      input = readSerialInput(30000);
+      if (input.length() > 0) mqtt_set_password(input);
+      
+      Serial.print("请输入设备ID（当前: " + mqtt_get_device_id() + "）: ");
+      input = readSerialInput(30000);
+      if (input.length() > 0) mqtt_set_device_id(input);
+      
+      mqtt_save_config();
+      mqtt_reinit();
+      Serial.println("✅ MQTT 配置已更新并保存，正在重新连接...");
+    }
+    else if (cmd == "showmqtt") {
+      Serial.println("\n===== 当前 MQTT 配置 =====");
+      Serial.println("Broker: " + mqtt_get_broker());
+      Serial.println("Port: " + String(mqtt_get_port()));
+      Serial.println("User: " + mqtt_get_user());
+      Serial.println("Password: " + mqtt_get_password());
+      Serial.println("Device ID: " + mqtt_get_device_id());
+    }
+    else if (cmd == "resetmqtt") {
+      Serial.println("\n重置 MQTT 配置为默认值...");
+      mqtt_set_broker(DEFAULT_MQTT_BROKER);
+      mqtt_set_port(DEFAULT_MQTT_PORT);
+      mqtt_set_user(DEFAULT_MQTT_USER);
+      mqtt_set_password(DEFAULT_MQTT_PASSWORD);
+      mqtt_set_device_id(DEFAULT_DEVICE_ID);
+      mqtt_save_config();
+      mqtt_reinit();
+      Serial.println("✅ MQTT 配置已重置");
+    }
   }
 }
-

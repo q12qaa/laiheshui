@@ -3,12 +3,16 @@
 OneWire oneWire(TEMP_PIN);
 DallasTemperature sensors(&oneWire);
 
+// 定义阈值变量（初始值可根据需要修改）
+float g_temp_threshold = 32.0f;      // 温度阈值（℃）
+int   g_light_threshold = 225;       // 光照阈值（ADC原始值）
+
 void adc_init(void) {
   pinMode(LIGHT_SENSOR_PIN, INPUT);
   analogReadResolution(12);
   sensors.begin();
   sensors.setWaitForConversion(false);
-  sensors.setResolution(10);   // 10位精度，转换时间约187.5ms，提高刷新率
+  sensors.setResolution(10);
 }
 
 int read_light_adc(void) {

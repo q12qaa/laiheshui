@@ -35,13 +35,13 @@ void oled_update(bool is_auto_mode, bool main_on,
   u8g2.print("总:");
   u8g2.print(main_on ? "开" : "关");
 
-  // 第二行：光照（带 Lux）
-  u8g2.setCursor(2, 30);
-  u8g2.print("光照:");
-  u8g2.print(lux_val, 1);
-  u8g2.print("/");
-  u8g2.print(lux_threshold, 1);
-  u8g2.print(" Lux");
+ // 第二行：光照（显示当前 Lux 和 ADC 阈值）
+u8g2.setCursor(2, 30);
+u8g2.print("光照:");
+u8g2.print(lux_val, 1);
+u8g2.print("/");
+u8g2.print(lux_threshold);
+u8g2.print(" ADC");
 
   // 第三行：温度（带 ℃）
   u8g2.setCursor(2, 46);

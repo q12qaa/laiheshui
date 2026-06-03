@@ -6,139 +6,15 @@
 #include "rgb.h"
 #include <esp_system.h>
 
-// ===================== 模式/状态配置 =====================
-enum State { S00, S10, S01, S11 };
-enum State current_state = S00;
+// 局部变量（不需要跨文件访问）
 int step = 0;
-
 unsigned long key2_down_time = 0;
 bool key2_holding = false;
 const unsigned int LONG_PRESS_MIN = 1000;
 
-bool is_auto_mode = true;
-
-#define LUX_THRESHOLD    225.0f
-#define TEMP_THRESHOLD   32.0f
-
 int g_light_val = 0;
 float g_temp_val = 25.0f;
-bool g_led_on = false;
-bool g_fan_on = false;
 float g_lux_val = 0.0f;
-
-// ===================== 手动模式状态→颜色映射 =====================
-uint32_t stateColor(enum State s) {
-  switch (s) {
-    case S00: return RGB_WHITE;
-    case S10: return RGB_GREEN;
-    case S01: return RGB_BLUE;
-    case S11: return RGB_PURPLE;
-    default: return RGB_WHITE;
-  }
-}
-
-/**
- * @brief 更新RGB指示灯颜色（完全匹配成功案例逻辑）
- * 优先级：WiFi未连接(红) > 总开关断开(黄) > 总开关闭合+自动模式(绿) > 总开关闭合+手动模式(状态色)
- */
-void update_rgb_status() {
-  // 1. WiFi未连接（包括离线模式或在线但断开）：红色常亮
-  if (!lhswifi_is_connected()) {
-    rgb_set_color(RGB_RED);
-    return;
-  }
-
-  // 2. WiFi已连接，总开关断开：黄色常亮
-  if (!key1_is_on()) {
-    rgb_set_color(RGB_YELLOW);
-    return;
-  }
-
-  // 3. WiFi已连接，总开关闭合
-  if (is_auto_mode) {
-    rgb_set_color(RGB_GREEN);   // 自动模式：绿色
-  } else {
-    rgb_set_color(stateColor(current_state));  // 手动模式：根据输出状态
-  }
-}
-
-// 按键反馈闪烁：在线且WiFi已连接闪烁蓝色，否则闪烁红色
-static void key_feedback_blink() {
-  if (lhswifi_is_connected()) {
-    rgb_blink_once(RGB_BLUE, 100);
-  } else {
-    rgb_blink_once(RGB_RED, 200);
-  }
-}
-
-float convertAdcToLux(int rawADC) {
-  int reversedADC = 4095 - rawADC;
-  return (reversedADC * reversedADC) / 30000.0f;
-}
-
-void setRelay(enum State s) {
-  switch (s) {
-    case S00:
-      digitalWrite(LIGHT_PIN, LOW);
-      digitalWrite(FAN_PIN, LOW);
-      g_led_on = false;
-      g_fan_on = false;
-      break;
-    case S10:
-      digitalWrite(LIGHT_PIN, HIGH);
-      digitalWrite(FAN_PIN, LOW);
-      g_led_on = true;
-      g_fan_on = false;
-      break;
-    case S01:
-      digitalWrite(LIGHT_PIN, LOW);
-      digitalWrite(FAN_PIN, HIGH);
-      g_led_on = false;
-      g_fan_on = true;
-      break;
-    case S11:
-      digitalWrite(LIGHT_PIN, HIGH);
-      digitalWrite(FAN_PIN, HIGH);
-      g_led_on = true;
-      g_fan_on = true;
-      break;
-  }
-}
-
-// ===================== 串口命令处理 =====================
-void handleSerialCommands() {
-  if (Serial.available() > 0) {
-    String cmd = Serial.readStringUntil('\n');
-    cmd.trim();
-    cmd.toLowerCase();
-
-    if (cmd == "scan") {
-      wifi_scan_and_print();
-    } else if (cmd == "connect") {
-      switch_to_wifi_mode();
-    } else if (cmd == "offline") {
-      switch_to_offline_mode();
-    } else if (cmd == "clearwifi") {
-      Serial.println("\n🗑️ 清除Flash中的WiFi配置...");
-      wifi_clear_saved_config();
-      rgb_blink_once(RGB_RED, 500);
-      Serial.println("✅ WiFi配置已清除，重启后仍为离线模式");
-    } else if (cmd == "reboot") {
-      Serial.println("🔄 设备正在重启...");
-      delay(1000);
-      ESP.restart();
-    } else if (cmd == "wifiinfo") {
-      if (lhswifi_is_connected()) {
-        Serial.println("\n===== 当前WiFi信息 =====");
-        Serial.printf("SSID: %s\n", WiFi.SSID().c_str());
-        Serial.printf("IP: %s\n", lhswifi_get_ip().c_str());
-        Serial.printf("信号强度: %d dBm\n", WiFi.RSSI());
-      } else {
-        Serial.println("⚠️ 当前未连接WiFi");
-      }
-    }
-  }
-}
 
 // ===================== 初始化 =====================
 void setup() {
@@ -210,7 +86,6 @@ void loop() {
     key1_edge = 0;
     if (!key1_is_on()) {
       is_auto_mode = true;
-      current_state = S00;
       setRelay(S00);
       step = 0;
       key2_holding = false;
@@ -218,10 +93,9 @@ void loop() {
     } else {
       Serial.println("KEY1 打开 → 系统开始运行");
     }
-    // 立即刷新OLED
     oled_update(is_auto_mode, key1_is_on(), g_lux_val, LUX_THRESHOLD,
                 g_temp_val, TEMP_THRESHOLD, g_led_on, g_fan_on,
-                lhswifi_is_connected());   // 修改：使用 is_connected
+                lhswifi_is_connected());
   }
 
   // KEY1 关闭：待机模式 + 长按5秒清除WiFi配置并重启
@@ -238,7 +112,7 @@ void loop() {
     }
 
     if (key2_is_pressing && digitalRead(KEY2_PIN) == HIGH && !wifi_clear_triggered) {
-      if (millis() - key2_press_start >= 5000) {   // 5秒
+      if (millis() - key2_press_start >= 5000) {
         wifi_clear_triggered = true;
         key2_is_pressing = false;
         Serial.println("\n🗑️ 检测到KEY1断开+KEY2长按5秒，清除WiFi配置...");
@@ -255,12 +129,10 @@ void loop() {
     }
 
     key2_holding = false;
-    
-    // 更新OLED
     oled_update(is_auto_mode, key1_is_on(), g_lux_val, LUX_THRESHOLD,
                 g_temp_val, TEMP_THRESHOLD, g_led_on, g_fan_on,
                 lhswifi_is_connected());
-    return;   // KEY1断开时不再执行后续自动控制
+    return;
   }
 
   // KEY1 打开：正常运行逻辑
@@ -276,7 +148,6 @@ void loop() {
     if (t >= LONG_PRESS_MIN) {
       long_trig = true;
       is_auto_mode = !is_auto_mode;
-      current_state = S00;
       setRelay(S00);
       step = 0;
       Serial.println(is_auto_mode ? "切换到：自动模式" : "切换到：手动模式");
@@ -293,7 +164,6 @@ void loop() {
     unsigned long hold = millis() - key2_down_time;
     if (key2_holding && hold < LONG_PRESS_MIN) {
       if (!is_auto_mode) {
-        // 手动模式：依次切换 S10 → S01 → S11 → S00
         step = (step + 1) % 6;
         switch (step) {
           case 1: current_state = S10; break;
@@ -344,7 +214,6 @@ void loop() {
     last_oled_refresh = millis();
   }
 
-  // 调试打印（每2秒）
   static unsigned long last_serial_print = 0;
   if (millis() - last_serial_print > 2000) {
     Serial.print("光照："); Serial.print(g_lux_val, 1);

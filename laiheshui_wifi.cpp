@@ -1,4 +1,7 @@
 #include "laiheshui_wifi.h"
+#include "rgb.h"
+#include "relay.h"
+#include <esp_system.h>
 #include <Preferences.h>
 
 Preferences prefs;
@@ -291,3 +294,41 @@ String wifi_get_local_ip() {
 int wifi_get_rssi() {
   return WiFi.RSSI();
 }
+
+
+
+// ===================== 串口命令处理 =====================
+void handleSerialCommands() {
+  if (Serial.available() > 0) {
+    String cmd = Serial.readStringUntil('\n');
+    cmd.trim();
+    cmd.toLowerCase();
+
+    if (cmd == "scan") {
+      wifi_scan_and_print();
+    } else if (cmd == "connect") {
+      switch_to_wifi_mode();
+    } else if (cmd == "offline") {
+      switch_to_offline_mode();
+    } else if (cmd == "clearwifi") {
+      Serial.println("\n🗑️ 清除Flash中的WiFi配置...");
+      wifi_clear_saved_config();
+      rgb_blink_once(RGB_RED, 500);
+      Serial.println("✅ WiFi配置已清除，重启后仍为离线模式");
+    } else if (cmd == "reboot") {
+      Serial.println("🔄 设备正在重启...");
+      delay(1000);
+      ESP.restart();
+    } else if (cmd == "wifiinfo") {
+      if (lhswifi_is_connected()) {
+        Serial.println("\n===== 当前WiFi信息 =====");
+        Serial.printf("SSID: %s\n", WiFi.SSID().c_str());
+        Serial.printf("IP: %s\n", lhswifi_get_ip().c_str());
+        Serial.printf("信号强度: %d dBm\n", WiFi.RSSI());
+      } else {
+        Serial.println("⚠️ 当前未连接WiFi");
+      }
+    }
+  }
+}
+

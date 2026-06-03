@@ -32,4 +32,7 @@ bool wifi_is_connected(void);
 String wifi_get_local_ip(void);
 int  wifi_get_rssi(void);
 
+// 新增：串口命令处理
+void handleSerialCommands(void);
+
 #endif

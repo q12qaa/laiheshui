@@ -12,7 +12,6 @@ void adc_init(void) {
 }
 
 int read_light_adc(void) {
-  // 3点移动平均滤波，提高抗干扰能力
   static int filter_buf[3] = {0};
   static int buf_index = 0;
   filter_buf[buf_index] = analogRead(LIGHT_SENSOR_PIN);
@@ -24,21 +23,23 @@ float read_light_voltage(void) {
   return read_light_adc() * 3.3f / 4095.0f;
 }
 
+float convertAdcToLux(int rawADC) {
+  int reversedADC = 4095 - rawADC;
+  return (reversedADC * reversedADC) / 30000.0f;
+}
+
 float read_temperature(void) {
-  // 无阻塞温度读取，每秒至少更新2次
   static unsigned long last_req_time = 0;
   static float last_temp = 25.0;
   static bool conversion_pending = false;
   unsigned long now = millis();
 
-  // 每500ms发起一次温度转换
   if (!conversion_pending && (now - last_req_time >= 500)) {
     sensors.requestTemperatures();
     last_req_time = now;
     conversion_pending = true;
   }
 
-  // 转换发起后等待250ms（10位精度足够）读取结果
   if (conversion_pending && (now - last_req_time >= 250)) {
     float temp = sensors.getTempCByIndex(0);
     if (temp != DEVICE_DISCONNECTED_C) {

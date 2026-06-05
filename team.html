@@ -11,7 +11,25 @@
             theme: { extend: { colors: { primary: '#1e40af', secondary: '#0369a1' } } }
         }
     </script>
-    <style>.shadow-soft { box-shadow: 0 4px 20px rgba(0,0,0,0.08); }</style>
+    <style>
+        .shadow-soft { box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+        .member-card {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .member-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 25px -12px rgba(0,0,0,0.2);
+        }
+        .member-photo {
+            width: 140px;
+            height: 140px;
+            object-fit: cover;
+            border-radius: 50%;
+            margin: 0 auto 1rem auto;
+            border: 4px solid #fff;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+        }
+    </style>
 </head>
 <body class="bg-gray-50 font-sans">
 
@@ -42,35 +60,49 @@
     </div>
 
     <div class="max-w-7xl mx-auto px-4 py-16">
+        <!-- 团队成员卡片，使用真实照片 -->
         <div class="grid md:grid-cols-3 gap-8">
-            <div class="bg-white rounded-xl shadow-soft p-6 text-center">
-                <i class="fas fa-chalkboard-teacher text-5xl text-primary mb-4"></i>
+            <!-- 张华教授 -->
+            <div class="bg-white rounded-xl shadow-soft p-6 text-center member-card">
+                <img src="./picture/team_zhanghua.jpg" alt="张华教授" class="member-photo">
                 <h3 class="text-xl font-semibold">张华 教授</h3>
                 <p class="text-gray-500">过程控制课程负责人</p>
                 <p class="mt-2 text-sm">研究方向：工业自动化、物联网教学</p>
             </div>
-            <div class="bg-white rounded-xl shadow-soft p-6 text-center">
-                <i class="fas fa-laptop-code text-5xl text-primary mb-4"></i>
+            <!-- 李明高级工程师 -->
+            <div class="bg-white rounded-xl shadow-soft p-6 text-center member-card">
+                <img src="./picture/team_liming.jpg" alt="李明高级工程师" class="member-photo">
                 <h3 class="text-xl font-semibold">李明 高级工程师</h3>
                 <p class="text-gray-500">硬件开发导师</p>
                 <p class="mt-2 text-sm">嵌入式系统、ESP32 平台专家</p>
             </div>
-            <div class="bg-white rounded-xl shadow-soft p-6 text-center">
-                <i class="fas fa-users text-5xl text-primary mb-4"></i>
+            <!-- 学生创新团队 -->
+            <div class="bg-white rounded-xl shadow-soft p-6 text-center member-card">
+                <img src="./picture/team_students.jpg" alt="学生创新团队" class="member-photo">
                 <h3 class="text-xl font-semibold">学生创新团队</h3>
                 <p class="text-gray-500">2024级自动化专业</p>
                 <p class="mt-2 text-sm">负责软件、测试、文档编写</p>
             </div>
         </div>
-        <div class="mt-12 bg-white rounded-xl shadow-soft p-8">
-            <h2 class="text-2xl font-bold text-center mb-6">开发历程</h2>
-            <ul class="space-y-2 text-gray-700">
-                <li>✔ 2025.03 - 项目立项，确定技术方案</li>
-                <li>✔ 2025.06 - 硬件设计打样，PCB 调试完成</li>
-                <li>✔ 2025.09 - 固件开发，实现自动/手动控制</li>
-                <li>✔ 2025.12 - MQTT 远程通信集成，云端测试</li>
-                <li>✔ 2026.03 - 实训装置量产，投入教学使用</li>
-            </ul>
+
+        <!-- 开发历程 + 团队风采照片 -->
+        <div class="mt-12 grid md:grid-cols-2 gap-8">
+            <div class="bg-white rounded-xl shadow-soft p-8">
+                <h2 class="text-2xl font-bold text-center mb-6">开发历程</h2>
+                <ul class="space-y-2 text-gray-700">
+                    <li>✔ 2025.03 - 项目立项，确定技术方案</li>
+                    <li>✔ 2025.06 - 硬件设计打样，PCB 调试完成</li>
+                    <li>✔ 2025.09 - 固件开发，实现自动/手动控制</li>
+                    <li>✔ 2025.12 - MQTT 远程通信集成，云端测试</li>
+                    <li>✔ 2026.03 - 实训装置量产，投入教学使用</li>
+                </ul>
+            </div>
+            <!-- 团队研发照片 -->
+            <div class="bg-white rounded-xl shadow-soft p-6 overflow-hidden">
+                <h2 class="text-2xl font-bold text-center mb-4">团队风采</h2>
+                <img src="./picture/lab_group.jpg" alt="团队研发讨论现场" class="rounded-lg w-full h-48 object-cover shadow-md hover:scale-105 transition duration-300">
+                <p class="text-center text-gray-500 text-sm mt-3">软硬件联调现场 · 师生协作创新</p>
+            </div>
         </div>
     </div>
 

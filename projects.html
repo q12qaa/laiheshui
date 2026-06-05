@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>实训成果 - PCT-100 实训装置</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: { extend: { colors: { primary: '#1e40af', secondary: '#0369a1' } } }
+        }
+    </script>
+    <style>.shadow-soft { box-shadow: 0 4px 20px rgba(0,0,0,0.08); }</style>
+</head>
+<body class="bg-gray-50 font-sans">
+
+    <!-- 统一导航栏 -->
+    <nav class="fixed top-0 left-0 right-0 bg-white/95 backdrop-blur-sm shadow-soft z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center"><i class="fas fa-microchip text-primary text-2xl mr-3"></i><span class="text-xl font-bold text-primary">PCT-100 实训装置</span></div>
+                <div class="hidden md:flex space-x-8">
+                    <a href="index.html" class="text-gray-600 hover:text-primary">产品说明书</a>
+                    <a href="team.html" class="text-gray-600 hover:text-primary">团队介绍</a>
+                    <a href="projects.html" class="text-primary font-semibold border-b-2 border-primary pb-1">实训成果</a>
+                </div>
+                <div class="md:hidden"><button id="mobileMenuBtn" class="text-gray-600"><i class="fas fa-bars text-xl"></i></button></div>
+            </div>
+        </div>
+        <div id="mobileMenu" class="md:hidden hidden bg-white border-t">
+            <a href="index.html" class="block px-4 py-2 text-gray-600 hover:bg-gray-50">产品说明书</a>
+            <a href="team.html" class="block px-4 py-2 text-gray-600 hover:bg-gray-50">团队介绍</a>
+            <a href="projects.html" class="block px-4 py-2 bg-primary/10 text-primary">实训成果</a>
+        </div>
+    </nav>
+
+    <!-- 英雄区域 -->
+    <div class="pt-24 pb-16 bg-gradient-to-r from-primary to-secondary text-white text-center">
+        <h1 class="text-4xl md:text-5xl font-bold">实训成果展示</h1>
+        <p class="text-xl mt-2">学生作品 · 教学案例 · 项目集锦</p>
+    </div>
+
+    <div class="max-w-7xl mx-auto px-4 py-16">
+        <div class="grid md:grid-cols-2 gap-8">
+            <div class="bg-white rounded-xl shadow-soft overflow-hidden">
+                <div class="h-48 bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center"><i class="fas fa-chart-line text-white text-6xl"></i></div>
+                <div class="p-6"><h3 class="text-xl font-semibold mb-2">单回路液位控制系统</h3><p class="text-gray-600">基于 PID 算法的液位稳定控制，实现±2mm 精度，完成教学实验报告。</p><a href="#" class="inline-block mt-3 text-primary hover:underline">查看详情 →</a></div>
+            </div>
+            <div class="bg-white rounded-xl shadow-soft overflow-hidden">
+                <div class="h-48 bg-gradient-to-br from-green-400 to-teal-500 flex items-center justify-center"><i class="fas fa-temperature-high text-white text-6xl"></i></div>
+                <div class="p-6"><h3 class="text-xl font-semibold mb-2">温度串级控制系统</h3><p class="text-gray-600">内环电流/外环温度，响应速度提升30%，成功抑制滞后干扰。</p><a href="#" class="inline-block mt-3 text-primary hover:underline">查看详情 →</a></div>
+            </div>
+            <div class="bg-white rounded-xl shadow-soft overflow-hidden">
+                <div class="h-48 bg-gradient-to-br from-purple-400 to-pink-500 flex items-center justify-center"><i class="fas fa-cloud-upload-alt text-white text-6xl"></i></div>
+                <div class="p-6"><h3 class="text-xl font-semibold mb-2">MQTT 物联网监控平台</h3><p class="text-gray-600">Node-RED + 公网 Broker，实时显示温湿度、控制继电器，支持手机端。</p><a href="#" class="inline-block mt-3 text-primary hover:underline">查看详情 →</a></div>
+            </div>
+            <div class="bg-white rounded-xl shadow-soft overflow-hidden">
+                <div class="h-48 bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center"><i class="fas fa-microchip text-white text-6xl"></i></div>
+                <div class="p-6"><h3 class="text-xl font-semibold mb-2">自动化综合实训项目</h3><p class="text-gray-600">学生团队完成从接线、编程到组态监控的全流程，获得校一等奖。</p><a href="#" class="inline-block mt-3 text-primary hover:underline">查看详情 →</a></div>
+            </div>
+        </div>
+        <div class="mt-12 bg-white rounded-xl shadow-soft p-8 text-center">
+            <i class="fas fa-graduation-cap text-4xl text-primary mb-4"></i>
+            <p class="text-gray-700">本装置已支持化工、自动化、测控三个专业，累计完成实训人次 ≥ 500+</p>
+        </div>
+    </div>
+
+    <footer class="bg-gray-800 text-white py-8 text-center">
+        <p>&copy; 2026 化工实训设备有限公司 | 实训成果展示</p>
+    </footer>
+
+    <script>
+        document.getElementById('mobileMenuBtn').onclick = () => document.getElementById('mobileMenu').classList.toggle('hidden');
+    </script>
+</body>
+</html>

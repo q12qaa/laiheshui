@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>团队介绍 - PCT-100 实训装置</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: { extend: { colors: { primary: '#1e40af', secondary: '#0369a1' } } }
+        }
+    </script>
+    <style>.shadow-soft { box-shadow: 0 4px 20px rgba(0,0,0,0.08); }</style>
+</head>
+<body class="bg-gray-50 font-sans">
+
+    <!-- 统一导航栏 -->
+    <nav class="fixed top-0 left-0 right-0 bg-white/95 backdrop-blur-sm shadow-soft z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center"><i class="fas fa-microchip text-primary text-2xl mr-3"></i><span class="text-xl font-bold text-primary">PCT-100 实训装置</span></div>
+                <div class="hidden md:flex space-x-8">
+                    <a href="index.html" class="text-gray-600 hover:text-primary">产品说明书</a>
+                    <a href="team.html" class="text-primary font-semibold border-b-2 border-primary pb-1">团队介绍</a>
+                    <a href="projects.html" class="text-gray-600 hover:text-primary">实训成果</a>
+                </div>
+                <div class="md:hidden"><button id="mobileMenuBtn" class="text-gray-600"><i class="fas fa-bars text-xl"></i></button></div>
+            </div>
+        </div>
+        <div id="mobileMenu" class="md:hidden hidden bg-white border-t">
+            <a href="index.html" class="block px-4 py-2 text-gray-600 hover:bg-gray-50">产品说明书</a>
+            <a href="team.html" class="block px-4 py-2 bg-primary/10 text-primary">团队介绍</a>
+            <a href="projects.html" class="block px-4 py-2 text-gray-600 hover:bg-gray-50">实训成果</a>
+        </div>
+    </nav>
+
+    <!-- 英雄区域 -->
+    <div class="pt-24 pb-16 bg-gradient-to-r from-primary to-secondary text-white text-center">
+        <h1 class="text-4xl md:text-5xl font-bold">团队介绍</h1>
+        <p class="text-xl mt-2">指导教师 · 研发团队 · 学生成员</p>
+    </div>
+
+    <div class="max-w-7xl mx-auto px-4 py-16">
+        <div class="grid md:grid-cols-3 gap-8">
+            <div class="bg-white rounded-xl shadow-soft p-6 text-center">
+                <i class="fas fa-chalkboard-teacher text-5xl text-primary mb-4"></i>
+                <h3 class="text-xl font-semibold">张华 教授</h3>
+                <p class="text-gray-500">过程控制课程负责人</p>
+                <p class="mt-2 text-sm">研究方向：工业自动化、物联网教学</p>
+            </div>
+            <div class="bg-white rounded-xl shadow-soft p-6 text-center">
+                <i class="fas fa-laptop-code text-5xl text-primary mb-4"></i>
+                <h3 class="text-xl font-semibold">李明 高级工程师</h3>
+                <p class="text-gray-500">硬件开发导师</p>
+                <p class="mt-2 text-sm">嵌入式系统、ESP32 平台专家</p>
+            </div>
+            <div class="bg-white rounded-xl shadow-soft p-6 text-center">
+                <i class="fas fa-users text-5xl text-primary mb-4"></i>
+                <h3 class="text-xl font-semibold">学生创新团队</h3>
+                <p class="text-gray-500">2024级自动化专业</p>
+                <p class="mt-2 text-sm">负责软件、测试、文档编写</p>
+            </div>
+        </div>
+        <div class="mt-12 bg-white rounded-xl shadow-soft p-8">
+            <h2 class="text-2xl font-bold text-center mb-6">开发历程</h2>
+            <ul class="space-y-2 text-gray-700">
+                <li>✔ 2025.03 - 项目立项，确定技术方案</li>
+                <li>✔ 2025.06 - 硬件设计打样，PCB 调试完成</li>
+                <li>✔ 2025.09 - 固件开发，实现自动/手动控制</li>
+                <li>✔ 2025.12 - MQTT 远程通信集成，云端测试</li>
+                <li>✔ 2026.03 - 实训装置量产，投入教学使用</li>
+            </ul>
+        </div>
+    </div>
+
+    <footer class="bg-gray-800 text-white py-8 text-center">
+        <p>&copy; 2026 化工实训设备有限公司 | 团队风采</p>
+    </footer>
+
+    <script>
+        document.getElementById('mobileMenuBtn').onclick = () => document.getElementById('mobileMenu').classList.toggle('hidden');
+    </script>
+</body>
+</html>

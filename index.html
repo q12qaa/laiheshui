@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>PCT-100 化工控制器 - 产品说明书</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#1e40af',
+                        secondary: '#0369a1',
+                        accent: '#0891b2',
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        .scroll-smooth { scroll-behavior: smooth; }
+        .shadow-soft { box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08); }
+        section { scroll-margin-top: 120px; }
+        .subnav-sticky {
+            position: sticky;
+            top: 64px;
+            z-index: 40;
+            background: white;
+            border-bottom: 1px solid #e2e8f0;
+            backdrop-filter: blur(8px);
+        }
+    </style>
+</head>
+<body class="font-sans bg-gray-50 text-gray-800 scroll-smooth">
+
+    <!-- 固定导航栏（含三页面跳转） -->
+    <nav class="fixed top-0 left-0 right-0 bg-white/95 backdrop-blur-sm shadow-soft z-50 transition-all duration-300" id="navbar">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center">
+                    <i class="fas fa-microchip text-primary text-2xl mr-3"></i>
+                    <span class="text-xl font-bold text-primary">PCT-100 实训装置</span>
+                </div>
+                <!-- 三页面跳转链接 -->
+                <div class="hidden md:flex space-x-8">
+                    <a href="index.html" class="text-primary font-semibold border-b-2 border-primary pb-1">产品说明书</a>
+                    <a href="team.html" class="text-gray-600 hover:text-primary transition-colors">团队介绍</a>
+                    <a href="projects.html" class="text-gray-600 hover:text-primary transition-colors">实训成果</a>
+                </div>
+                <div class="md:hidden">
+                    <button id="mobileMenuBtn" class="text-gray-600 hover:text-primary">
+                        <i class="fas fa-bars text-xl"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <!-- 移动端菜单 -->
+        <div id="mobileMenu" class="md:hidden hidden bg-white border-t">
+            <div class="px-2 pt-2 pb-3 space-y-1">
+                <a href="index.html" class="block px-3 py-2 rounded-md text-base font-medium bg-primary/10 text-primary">产品说明书</a>
+                <a href="team.html" class="block px-3 py-2 rounded-md text-base font-medium text-gray-600 hover:text-primary hover:bg-gray-50">团队介绍</a>
+                <a href="projects.html" class="block px-3 py-2 rounded-md text-base font-medium text-gray-600 hover:text-primary hover:bg-gray-50">实训成果</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 粘性子导航栏（内部锚点快速跳转） -->
+    <div class="subnav-sticky overflow-x-auto whitespace-nowrap py-2 px-4 shadow-sm">
+        <div class="max-w-7xl mx-auto flex space-x-6 text-sm font-medium">
+            <a href="#overview" class="text-gray-600 hover:text-primary">产品概述</a>
+            <a href="#hardware" class="text-gray-600 hover:text-primary">硬件接口</a>
+            <a href="#features" class="text-gray-600 hover:text-primary">功能特性</a>
+            <a href="#operation" class="text-gray-600 hover:text-primary">按键操作</a>
+            <a href="#serial" class="text-gray-600 hover:text-primary">串口命令</a>
+            <a href="#mqtt" class="text-gray-600 hover:text-primary">MQTT 协议</a>
+            <a href="#rgb" class="text-gray-600 hover:text-primary">RGB指示灯</a>
+        </div>
+    </div>
+
+    <!-- 英雄区域 -->
+    <header class="pt-24 pb-16 bg-gradient-to-r from-primary to-secondary text-white">
+        <div class="max-w-7xl mx-auto px-4 text-center">
+            <h1 class="text-4xl md:text-5xl font-bold mb-4">PCT‑100 化工控制器</h1>
+            <p class="text-xl text-blue-100 mb-8">智能实训装置 · 工业级传感器 · 远程物联</p>
+            <div class="flex flex-wrap justify-center gap-4">
+                <a href="#overview" class="px-8 py-3 bg-white text-primary font-medium rounded-lg hover:bg-blue-50 transition transform hover:scale-105 shadow-lg">查看详情</a>
+                <a href="#mqtt" class="px-8 py-3 bg-transparent border-2 border-white text-white font-medium rounded-lg hover:bg-white/10 transition transform hover:scale-105">MQTT 协议</a>
+            </div>
+        </div>
+    </header>
+
+    <!-- 产品说明书完整内容（与用户原版完全一致） -->
+    <div class="max-w-7xl mx-auto px-4 py-16">
+        <!-- 产品概述 -->
+        <section id="overview" class="mb-16">
+            <div class="text-center mb-10"><h2 class="text-3xl font-bold">产品概述</h2><div class="w-20 h-1 bg-primary mx-auto mt-2"></div></div>
+            <div class="grid md:grid-cols-2 gap-12 items-center">
+                <div><p class="text-lg leading-relaxed">PCT-100 化工控制实训装置专为工业物联网教学及小型自动化场景设计。基于 ESP32-C3 平台，集成光敏传感器、DS18B20 温度传感器、继电器输出（灯/风扇）、WS2812 全彩状态灯、OLED 显示屏，支持 WiFi 配网与 MQTT 远程监控，可实现自动/手动双模式控制。</p>
+                    <div class="grid grid-cols-2 gap-4 mt-6">
+                        <div class="flex items-center"><i class="fas fa-check-circle text-green-500 mr-2"></i> 光照强度实时采集</div>
+                        <div class="flex items-center"><i class="fas fa-check-circle text-green-500 mr-2"></i> 温度高精度测量</div>
+                        <div class="flex items-center"><i class="fas fa-check-circle text-green-500 mr-2"></i> 自动/手动双模式</div>
+                        <div class="flex items-center"><i class="fas fa-check-circle text-green-500 mr-2"></i> MQTT 远程控制</div>
+                        <div class="flex items-center"><i class="fas fa-check-circle text-green-500 mr-2"></i> 串口+Web配网</div>
+                        <div class="flex items-center"><i class="fas fa-check-circle text-green-500 mr-2"></i> WS2812 全彩指示</div>
+                    </div>
+                </div>
+                <div class="bg-gray-100 rounded-xl p-8 text-center"><i class="fas fa-microchip text-7xl text-primary"></i><p class="mt-2 text-gray-500">ESP32-C3 工业级主控</p></div>
+            </div>
+        </section>
+
+        <!-- 硬件接口 -->
+        <section id="hardware" class="mb-16 bg-white rounded-xl shadow-soft p-8">
+            <div class="text-center mb-8"><h2 class="text-3xl font-bold">硬件接口定义</h2><div class="w-20 h-1 bg-primary mx-auto mt-2"></div></div>
+            <div class="grid md:grid-cols-2 gap-8">
+                <div><h3 class="text-xl font-semibold text-primary mb-4">主控及外设</h3>
+                    <ul class="space-y-2">
+                        <li><strong>MCU：</strong> ESP32-C3 (RISC-V)</li>
+                        <li><strong>光敏电阻：</strong> GPIO1 (ADC1_CH1)</li>
+                        <li><strong>DS18B20：</strong> GPIO10 (OneWire)</li>
+                        <li><strong>继电器-灯：</strong> GPIO6 (USB2)</li>
+                        <li><strong>继电器-风扇：</strong> GPIO7 (USB3)</li>
+                        <li><strong>KEY1 (自锁)：</strong> GPIO20, PULLDOWN</li>
+                        <li><strong>KEY2 (轻触)：</strong> GPIO21, PULLDOWN</li>
+                    </ul>
+                </div>
+                <div><h3 class="text-xl font-semibold text-primary mb-4">通信与显示</h3>
+                    <ul class="space-y-2">
+                        <li><strong>OLED (SH1106)：</strong> I2C: SDA=4, SCL=5</li>
+                        <li><strong>RGB LED (WS2812)：</strong> GPIO0</li>
+                        <li><strong>WiFi：</strong> 2.4GHz STA/AP 模式</li>
+                        <li><strong>MQTT Broker：</strong> 可配置 (默认 47.98.170.180:8081)</li>
+                        <li><strong>供电：</strong> Type-C 5V / 2A</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- 功能特性 -->
+        <section id="features" class="mb-16">
+            <div class="text-center mb-10"><h2 class="text-3xl font-bold">功能特性</h2><div class="w-20 h-1 bg-primary mx-auto mt-2"></div></div>
+            <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div class="bg-white rounded-xl p-6 shadow-soft"><i class="fas fa-robot text-3xl text-primary mb-3"></i><h3 class="text-xl font-semibold mb-2">自动控制</h3><p class="text-gray-600">光照<225Lux开灯，温度>阈值开风扇，状态变化即时上报MQTT。</p></div>
+                <div class="bg-white rounded-xl p-6 shadow-soft"><i class="fas fa-hand-paper text-3xl text-primary mb-3"></i><h3 class="text-xl font-semibold mb-2">手动控制</h3><p class="text-gray-600">KEY2短按循环切换灯/风扇/全开/全关，支持远程MQTT控制。</p></div>
+                <div class="bg-white rounded-xl p-6 shadow-soft"><i class="fas fa-wifi text-3xl text-primary mb-3"></i><h3 class="text-xl font-semibold mb-2">WiFi配网</h3><p class="text-gray-600">开机自动连接保存WiFi，长按清除配置，支持串口与Web配网。</p></div>
+                <div class="bg-white rounded-xl p-6 shadow-soft"><i class="fas fa-cloud-upload-alt text-3xl text-primary mb-3"></i><h3 class="text-xl font-semibold mb-2">MQTT远程</h3><p class="text-gray-600">动态修改服务器、端口、设备ID，支持远程重启、阈值设置等。</p></div>
+            </div>
+        </section>
+
+        <!-- 按键操作 -->
+        <section id="operation" class="mb-16 bg-white rounded-xl shadow-soft p-8">
+            <div class="text-center mb-8"><h2 class="text-3xl font-bold">按键操作说明</h2><div class="w-20 h-1 bg-primary mx-auto mt-2"></div></div>
+            <div class="overflow-x-auto"><table class="w-full border-collapse"><thead><tr class="bg-primary text-white"><th class="px-6 py-3 text-left">按键</th><th class="px-6 py-3 text-left">操作方式</th><th class="px-6 py-3 text-left">功能描述</th></tr></thead><tbody class="divide-y divide-gray-200"><tr><td class="px-6 py-3 font-medium">KEY1</td><td class="px-6 py-3">自锁开关 (闭合/断开)</td><td class="px-6 py-3">总闸控制：断开时全部断电，闭合时系统运行</td></tr><tr><td class="px-6 py-3 font-medium">KEY2</td><td class="px-6 py-3">短按 (&lt;1秒)</td><td class="px-6 py-3">手动模式下循环切换输出状态</td></tr><tr><td class="px-6 py-3 font-medium">KEY2</td><td class="px-6 py-3">长按 (1~2秒)</td><td class="px-6 py-3">自动模式 ↔ 手动模式切换</td></tr><tr><td class="px-6 py-3 font-medium">KEY1断开+KEY2长按</td><td class="px-6 py-3">长按5秒</td><td class="px-6 py-3">清除所有WiFi配置并重启设备</td></tr></tbody></table></div>
+            <p class="mt-4 text-sm text-gray-500"><i class="fas fa-bell text-primary"></i> 所有按键动作均会触发 MQTT 状态立即上报</p>
+        </section>
+
+        <!-- 串口命令 -->
+        <section id="serial" class="mb-16">
+            <div class="text-center mb-8"><h2 class="text-3xl font-bold">串口命令 (115200 baud)</h2><div class="w-20 h-1 bg-primary mx-auto mt-2"></div></div>
+            <div class="bg-white rounded-xl shadow-soft overflow-hidden"><table class="w-full"><thead class="bg-gray-100"><tr><th class="px-6 py-3 text-left">命令</th><th class="px-6 py-3 text-left">说明</th></tr></thead><tbody class="divide-y divide-gray-200"><tr><td class="px-6 py-3"><code class="bg-gray-100 px-2 py-1 rounded">scan</code></td><td class="px-6 py-3">扫描附近WiFi网络</td></tr><tr><td class="px-6 py-3"><code class="bg-gray-100 px-2 py-1 rounded">connect</code></td><td class="px-6 py-3">切换到WiFi模式(交互式配网)</td></tr><tr><td class="px-6 py-3"><code class="bg-gray-100 px-2 py-1 rounded">offline</code></td><td class="px-6 py-3">切换到离线模式 (红色指示灯)</td></tr><tr><td class="px-6 py-3"><code class="bg-gray-100 px-2 py-1 rounded">clearwifi</code></td><td class="px-6 py-3">清除Flash中的WiFi配置</td></tr><tr><td class="px-6 py-3"><code class="bg-gray-100 px-2 py-1 rounded">reboot</code></td><td class="px-6 py-3">软重启设备</td></tr><tr><td class="px-6 py-3"><code class="bg-gray-100 px-2 py-1 rounded">wifiinfo</code></td><td class="px-6 py-3">显示当前连接WiFi信息</td></tr><tr><td class="px-6 py-3"><code class="bg-gray-100 px-2 py-1 rounded">setmqtt</code></td><td class="px-6 py-3">交互式设置MQTT参数</td></tr><tr><td class="px-6 py-3"><code class="bg-gray-100 px-2 py-1 rounded">showmqtt</code></td><td class="px-6 py-3">显示当前MQTT配置</td></tr><tr><td class="px-6 py-3"><code class="bg-gray-100 px-2 py-1 rounded">resetmqtt</code></td><td class="px-6 py-3">重置MQTT配置为出厂默认</td></tr></tbody></table></div>
+        </section>
+
+        <!-- MQTT 协议 -->
+        <section id="mqtt" class="mb-16 bg-white rounded-xl shadow-soft p-8">
+            <div class="text-center mb-8"><h2 class="text-3xl font-bold">MQTT 通信协议</h2><div class="w-20 h-1 bg-primary mx-auto mt-2"></div></div>
+            <p class="mb-4"><strong>Broker:</strong> 47.98.170.180:8081 (可串口修改)<br><strong>协议版本:</strong> MQTT 3.1.1<br><strong>设备ID:</strong> 出厂为 PCT_100_027，可自定义</p>
+            <h3 class="text-xl font-semibold mt-6 mb-2">📤 上报主题 (设备 → 服务器)</h3>
+            <pre class="bg-gray-800 text-gray-100 p-4 rounded-lg overflow-x-auto text-sm">chemctrl/{device_id}/status</pre>
+            <pre class="bg-gray-800 text-gray-100 p-4 rounded-lg overflow-x-auto text-sm mt-2">{
+  "temperature": 25.3,
+  "light": 125,
+  "mode": "auto",
+  "key1_lock": true,
+  "relay3": false,
+  "relay4": true,
+  "temp_threshold": 33.0,
+  "light_threshold": 225.0
+}</pre>
+            <h3 class="text-xl font-semibold mt-6 mb-2">📥 下发命令 (服务器 → 设备)</h3>
+            <div class="overflow-x-auto"><table class="w-full border-collapse"><thead><tr class="bg-gray-100"><th class="px-6 py-3 text-left">命令示例</th><th class="px-6 py-3 text-left">功能</th></tr></thead><tbody class="divide-y divide-gray-200"><tr><td class="px-6 py-3"><code>{"cmd":"set_relay","relay":3,"value":true}</code></td><td class="px-6 py-3">控制灯光(继电器3)</td></tr><tr><td class="px-6 py-3"><code>{"cmd":"set_relay","relay":4,"value":false}</code></td><td class="px-6 py-3">控制风扇(继电器4)</td></tr><tr><td class="px-6 py-3"><code>{"cmd":"set_mode","mode":"auto"}</code></td><td class="px-6 py-3">切换至自动模式</td></tr><tr><td class="px-6 py-3"><code>{"cmd":"set_threshold","temp":35.0,"light":180}</code></td><td class="px-6 py-3">修改温度/光照阈值</td></tr><tr><td class="px-6 py-3"><code>{"cmd":"get_status"}</code></td><td class="px-6 py-3">立即查询并上报一次状态</td></tr><tr><td class="px-6 py-3"><code>{"cmd":"reboot"}</code></td><td class="px-6 py-3">远程重启设备</td></tr></tbody></table></div>
+        </section>
+
+        <!-- RGB 指示灯 -->
+        <section id="rgb" class="mb-16">
+            <div class="text-center mb-8"><h2 class="text-3xl font-bold">WS2812 RGB 状态指示灯</h2><div class="w-20 h-1 bg-primary mx-auto mt-2"></div></div>
+            <div class="grid md:grid-cols-2 gap-8">
+                <div class="bg-white rounded-xl p-6 shadow-soft"><h3 class="text-xl font-semibold mb-4">常规状态</h3><ul class="space-y-2"><li><span class="inline-block w-4 h-4 rounded-full bg-green-500 mr-2"></span><strong>绿色常亮</strong> → WiFi已连 + 自动模式 + 正常</li><li><span class="inline-block w-4 h-4 rounded-full bg-blue-500 mr-2"></span><strong>蓝色常亮</strong> → WiFi已连 + 手动模式</li><li><span class="inline-block w-4 h-4 rounded-full bg-yellow-500 mr-2"></span><strong>黄色常亮</strong> → WiFi已连 + KEY1断开(待机)</li><li><span class="inline-block w-4 h-4 rounded-full bg-red-500 mr-2"></span><strong>红色常亮</strong> → WiFi未连接 / 离线模式</li><li><span class="inline-block w-4 h-4 rounded-full bg-fuchsia-500 mr-2"></span><strong>紫色/品红闪烁</strong> → WiFi指示脉冲(未联网)</li></ul></div>
+                <div class="bg-white rounded-xl p-6 shadow-soft"><h3 class="text-xl font-semibold mb-4">特殊效果</h3><ul class="space-y-2"><li><span class="inline-block w-4 h-4 rounded-full bg-white border border-gray-300 mr-2"></span><strong>白色短闪</strong> → WiFi已连接 (每3秒指示)</li><li><span class="inline-block w-4 h-4 rounded-full bg-orange-500 mr-2"></span><strong>呼吸红</strong> → 自动模式 + 温度过高告警</li><li><span class="inline-block w-4 h-4 rounded-full bg-gradient-to-r from-red-500 via-green-500 to-blue-500 mr-2"></span><strong>开机彩虹</strong> → 上电或首次开启总闸时演示全彩能力</li></ul></div>
+            </div>
+            <p class="mt-4 text-sm text-gray-500 text-center"><i class="fas fa-info-circle text-primary"></i> WiFi指示脉冲不会干扰主状态色，每3秒短暂闪烁后恢复。</p>
+        </section>
+
+        <!-- 开机动画 -->
+        <section class="mb-16 bg-white rounded-xl shadow-soft p-8"><div class="text-center mb-6"><h2 class="text-2xl font-bold">🎬 开机动画流程</h2></div><ol class="list-decimal list-inside space-y-1 text-gray-700"><li>WS2812 万色灯闪烁（红橙黄绿青蓝紫白双循环 + 彩虹收尾）~2s</li><li>OLED 进度条动画 + 设备版本显示 ~2s</li><li>NTP 网络对时（若 WiFi 已连接）~2s</li><li>OLED 显示 WiFi 信息页 + 彩虹灯效 ~2.5s</li><li>进入主控制界面，开始传感器采集</li></ol><p class="mt-4 text-sm text-gray-500">总动画时长约 8 秒，展示设备全功能并等待总闸开启。</p></section>
+
+        <!-- 部署与维护 -->
+        <section class="bg-white rounded-xl shadow-soft p-8"><div class="text-center mb-6"><h2 class="text-2xl font-bold">📦 部署与维护</h2></div><div class="grid md:grid-cols-2 gap-4"><p>✔ 源代码基于 Arduino 框架，使用 VS Code / PlatformIO 开发。</p><p>✔ 固件升级：通过串口或 OTA (需自行扩展) 更新。</p><p>✔ 远程调试：MQTT 日志上报 + 串口实时输出。</p><p>✔ 所有配置（WiFi / MQTT）保存在 Flash 中，断电不丢失。</p></div></section>
+    </div>
+
+    <!-- 页脚 -->
+    <footer class="bg-gray-800 text-white py-8 text-center">
+        <p>&copy; 2026 化工实训设备有限公司 | 产品说明书 v2.0</p>
+    </footer>
+
+    <button id="backToTop" class="fixed bottom-8 right-8 w-12 h-12 bg-primary text-white rounded-full shadow-lg flex items-center justify-center opacity-0 invisible transition-all duration-300 hover:bg-secondary"><i class="fas fa-arrow-up"></i></button>
+
+    <script>
+        const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+        const mobileMenu = document.getElementById('mobileMenu');
+        if(mobileMenuBtn) mobileMenuBtn.onclick = () => mobileMenu.classList.toggle('hidden');
+        const backToTop = document.getElementById('backToTop');
+        window.addEventListener('scroll', () => {
+            if(window.scrollY > 300) backToTop.classList.remove('opacity-0','invisible'), backToTop.classList.add('opacity-100','visible');
+            else backToTop.classList.add('opacity-0','invisible'), backToTop.classList.remove('opacity-100','visible');
+        });
+        backToTop.onclick = () => window.scrollTo({top:0, behavior:'smooth'});
+        document.querySelectorAll('a[href^="#"]').forEach(a => a.addEventListener('click', function(e){
+            e.preventDefault();
+            if(mobileMenu) mobileMenu.classList.add('hidden');
+            const target = document.querySelector(this.getAttribute('href'));
+            if(target) window.scrollTo({top: target.offsetTop - 120, behavior:'smooth'});
+        }));
+    </script>
+</body>
+</html>

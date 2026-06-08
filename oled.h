@@ -11,9 +11,9 @@ extern U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g2;
 
 void oled_init(void);
 void oled_update(bool is_auto_mode, bool main_on,
-                 float lux_val, float lux_threshold,   // 均为 Lux
+                 float lux_val, float lux_threshold,
                  float temp_val, float temp_threshold,
                  bool led_on, bool fan_on,
-                 bool wifi_mode);
+                 bool wifi_mode, bool is_internal);  // 增加 is_internal 参数
 
 #endif

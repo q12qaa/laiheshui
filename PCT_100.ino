@@ -16,7 +16,6 @@ int g_light_adc = 0;
 float g_lux_val = 0.0f;
 float g_temp_val = 25.0f;
 
-// 立即上报 MQTT（仅当已连接时）
 static void publish_mqtt_now(void) {
     if (mqtt_is_connected()) {
         mqtt_publish_status();
@@ -24,6 +23,7 @@ static void publish_mqtt_now(void) {
 }
 
 void setup() {
+  
   Serial.begin(115200);
   
   rgb_init();
@@ -69,8 +69,18 @@ void setup() {
   Serial.println("  setmqtt    - 交互式配置MQTT参数");
   Serial.println("  showmqtt   - 显示当前MQTT配置");
   Serial.println("  resetmqtt  - 重置MQTT配置为默认值");
+  Serial.println("  network    - 切换内网/外网模式");
 
   update_rgb_status();
+
+  WiFiClient testClient;
+Serial.print("Testing connection to MQTT broker... ");
+if (testClient.connect(IPAddress(10,225,113,37), 1883)) {  // 替换为你的电脑 IP
+    Serial.println("OK");
+    testClient.stop();
+} else {
+    Serial.println("FAILED");
+}
 }
 
 void loop() {
@@ -88,7 +98,7 @@ void loop() {
 
   update_rgb_status();
 
-  // ========== KEY1 总开关逻辑 ==========
+  // KEY1 总开关逻辑
   if (key1_edge) {
     key1_edge = 0;
     if (!key1_is_on()) {
@@ -102,11 +112,11 @@ void loop() {
     }
     oled_update(is_auto_mode, key1_is_on(), g_lux_val, g_light_threshold,
                 g_temp_val, g_temp_threshold, g_led_on, g_fan_on,
-                lhswifi_is_connected());
-    publish_mqtt_now();      // KEY1 变化立即上报
+                lhswifi_is_connected(), mqtt_is_internal());
+    publish_mqtt_now();
   }
 
-  // ========== KEY1 关闭：待机模式 + 长按5秒清除WiFi配置并重启 ==========
+  // KEY1 关闭：待机模式 + 长按5秒清除WiFi配置
   if (!key1_is_on()) {
     static unsigned long key2_press_start = 0;
     static bool key2_is_pressing = false;
@@ -139,11 +149,11 @@ void loop() {
     key2_holding = false;
     oled_update(is_auto_mode, key1_is_on(), g_lux_val, g_light_threshold,
                 g_temp_val, g_temp_threshold, g_led_on, g_fan_on,
-                lhswifi_is_connected());
+                lhswifi_is_connected(), mqtt_is_internal());
     return;
   }
 
-  // ========== KEY1 打开：正常运行逻辑 ==========
+  // KEY1 打开：正常运行逻辑
   if (key2_edge) {
     key2_edge = 0;
     key2_down_time = millis();
@@ -162,8 +172,8 @@ void loop() {
       key_feedback_blink();
       oled_update(is_auto_mode, key1_is_on(), g_lux_val, g_light_threshold,
                   g_temp_val, g_temp_threshold, g_led_on, g_fan_on,
-                  lhswifi_is_connected());
-      publish_mqtt_now();      // 模式切换立即上报
+                  lhswifi_is_connected(), mqtt_is_internal());
+      publish_mqtt_now();
     }
   }
 
@@ -188,8 +198,8 @@ void loop() {
         key_feedback_blink();
         oled_update(is_auto_mode, key1_is_on(), g_lux_val, g_light_threshold,
                     g_temp_val, g_temp_threshold, g_led_on, g_fan_on,
-                    lhswifi_is_connected());
-        publish_mqtt_now();      // 手动状态切换立即上报
+                    lhswifi_is_connected(), mqtt_is_internal());
+        publish_mqtt_now();
       } else {
         Serial.println("自动模式下短按KEY2无效，请长按切换手动模式");
         key_feedback_blink();
@@ -200,32 +210,23 @@ void loop() {
   }
   last_k2 = now_k2;
 
-  // ========== 自动模式：状态变化立即上报 ==========
+  // 自动模式：状态变化立即上报
   if (is_auto_mode) {
     bool new_led = (g_lux_val <= g_light_threshold);
     bool new_fan = (g_temp_val > g_temp_threshold);
     
     if (new_led != g_led_on || new_fan != g_fan_on) {
-      // 更新全局状态
       g_led_on = new_led;
       g_fan_on = new_fan;
       
-      // 根据新状态确定 current_state
-      if (g_led_on && g_fan_on) {
-        current_state = S11;
-      } else if (g_led_on && !g_fan_on) {
-        current_state = S10;
-      } else if (!g_led_on && g_fan_on) {
-        current_state = S01;
-      } else {
-        current_state = S00;
-      }
+      if (g_led_on && g_fan_on) current_state = S11;
+      else if (g_led_on && !g_fan_on) current_state = S10;
+      else if (!g_led_on && g_fan_on) current_state = S01;
+      else current_state = S00;
       setRelay(current_state);
       
-      // 状态变化，立即上报
       publish_mqtt_now();
       
-      // 可选日志
       Serial.printf("[自动] 灯:%s 风扇:%s (光照:%.1f Lux 阈值:%.1f, 温度:%.1f℃ 阈值:%.1f)\n",
                     g_led_on?"开":"关", g_fan_on?"开":"关",
                     g_lux_val, g_light_threshold, g_temp_val, g_temp_threshold);
@@ -237,7 +238,7 @@ void loop() {
   if (millis() - last_oled_refresh > 100) {
     oled_update(is_auto_mode, key1_is_on(), g_lux_val, g_light_threshold,
                 g_temp_val, g_temp_threshold, g_led_on, g_fan_on,
-                lhswifi_is_connected());
+                lhswifi_is_connected(), mqtt_is_internal());
     last_oled_refresh = millis();
   }
 

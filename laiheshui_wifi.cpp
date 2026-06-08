@@ -358,5 +358,18 @@ void handleSerialCommands() {
       mqtt_reinit();
       Serial.println("✅ MQTT 配置已重置");
     }
+    else if (cmd == "network") {
+    Serial.println("\n===== 网络模式切换 =====");
+    Serial.println("输入 'internal' 切换内网，输入 'external' 切换外网");
+    String mode = readSerialInput(10000);
+    mode.toLowerCase();
+    if (mode == "internal") {
+        mqtt_set_network_mode(true);
+    } else if (mode == "external") {
+        mqtt_set_network_mode(false);
+    } else {
+        Serial.println("❌ 无效输入，请输入 internal 或 external");
+    }
+}
   }
 }
